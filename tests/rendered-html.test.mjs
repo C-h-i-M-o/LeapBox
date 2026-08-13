@@ -1,91 +1,79 @@
 import assert from "node:assert/strict";
-import { access, readFile, readdir } from "node:fs/promises";
+import { access, readFile } from "node:fs/promises";
 import test from "node:test";
 
-const developmentPreviewMeta =
-  /<meta(?=[^>]*\bname=["']codex-preview["'])(?=[^>]*\bcontent=["']development["'])[^>]*>/i;
-const templateRoot = new URL("../", import.meta.url);
-const previewRoot = new URL("../app/_sites-preview/", import.meta.url);
-
-async function render() {
+async function render(authenticated = true) {
   const workerUrl = new URL("../dist/server/index.js", import.meta.url);
-  workerUrl.searchParams.set("test", `${process.pid}-${Date.now()}`);
+  workerUrl.searchParams.set("test", `${process.pid}-${Date.now()}-${authenticated}`);
   const { default: worker } = await import(workerUrl.href);
-
+  const headers = new Headers({ accept: "text/html" });
+  if (authenticated) {
+    headers.set("oai-authenticated-user-id", "owner-test");
+    headers.set("oai-authenticated-user-email", "owner@example.com");
+    headers.set(
+      "oai-authenticated-user-full-name",
+      encodeURIComponent("跃匣主人"),
+    );
+    headers.set(
+      "oai-authenticated-user-full-name-encoding",
+      "percent-encoded-utf-8",
+    );
+  }
   return worker.fetch(
-    new Request("http://localhost/", {
-      headers: { accept: "text/html" },
-    }),
-    {
-      ASSETS: {
-        fetch: async () => new Response("Not found", { status: 404 }),
-      },
-    },
-    {
-      waitUntil() {},
-      passThroughOnException() {},
-    },
+    new Request("http://localhost/", { headers, redirect: "manual" }),
+    { ASSETS: { fetch: async () => new Response("Not found", { status: 404 }) } },
+    { waitUntil() {}, passThroughOnException() {} },
   );
 }
 
-test("server-renders the starter loading skeleton", async () => {
-  const response = await render();
-  assert.equal(response.status, 200);
-  assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
-
-  const html = await response.text();
-  assert.match(html, developmentPreviewMeta);
-  assert.match(html, /<title>Your site is taking shape<\/title>/i);
-  assert.match(html, /Building your site/);
-  assert.match(html, /Your site is taking shape/);
-  assert.match(
-    html,
-    /Your first version will appear here automatically when it’s ready\./,
-  );
-  assert.doesNotMatch(html, /Codex/);
-  assert.match(html, /react-loading-skeleton/);
-  assert.match(html, /role="status"/);
+test("未登录访问会进入 Sites 的 ChatGPT 登录流程", async () => {
+  const response = await render(false);
+  assert.ok(response.status >= 300 && response.status < 400);
+  assert.match(response.headers.get("location") ?? "", /^\/signin-with-chatgpt\?/u);
 });
 
-test("keeps the loading skeleton scoped and disposable", async () => {
-  const [preview, css, page, layout, packageJson, files] = await Promise.all([
-    readFile(new URL("SkeletonPreview.tsx", previewRoot), "utf8"),
-    readFile(new URL("preview.css", previewRoot), "utf8"),
+test("已登录首屏直接呈现完整文件管理功能", async () => {
+  const response = await render(true);
+  assert.equal(response.status, 200);
+  assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/iu);
+  const html = await response.text();
+  assert.match(html, /<title>跃匣 · 私人文件管理<\/title>/iu);
+  assert.match(html, /我的文件/);
+  assert.match(html, /最近使用/);
+  assert.match(html, /收藏/);
+  assert.match(html, /回收站/);
+  assert.match(html, /新建文件夹/);
+  assert.match(html, /上传文件/);
+  assert.match(html, /搜索文件/);
+  assert.match(html, /跃匣主人/);
+  assert.doesNotMatch(html, /Your site is taking shape|codex-preview|react-loading-skeleton/iu);
+});
+
+test("成品移除一次性预览骨架与依赖", async () => {
+  const [page, layout, packageJson] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
     readFile(new URL("../package.json", import.meta.url), "utf8"),
-    readdir(previewRoot),
   ]);
+  assert.doesNotMatch(page, /_sites-preview|codex-preview|SkeletonPreview/iu);
+  assert.doesNotMatch(layout, /Starter Project|next\/font\/google/iu);
+  assert.doesNotMatch(packageJson, /react-loading-skeleton/iu);
+  await assert.rejects(access(new URL("../app/_sites-preview", import.meta.url)));
+  await assert.doesNotReject(access(new URL("../app/components/FileManager.tsx", import.meta.url)));
+  await assert.doesNotReject(access(new URL("../app/components/file-manager.css", import.meta.url)));
+});
 
-  assert.deepEqual(files.sort(), ["SkeletonPreview.tsx", "preview.css"]);
-  assert.match(preview, /from "react-loading-skeleton"/);
-  assert.match(preview, /baseColor="#eceae7"/);
-  assert.match(preview, /highlightColor="#f9f8f6"/);
-  assert.match(preview, /duration=\{2\.8\}/);
-  assert.match(preview, /sites-skeleton-search-placeholder/);
-  assert.match(packageJson, /"react-loading-skeleton": "3\.5\.0"/);
-
-  const shellIndex = preview.indexOf('className="sites-skeleton-shell"');
-  const statusIndex = preview.indexOf('className="sites-skeleton-status"');
-  assert.ok(shellIndex >= 0 && statusIndex > shellIndex);
-  assert.match(css, /position:\s*fixed/);
-  assert.match(css, /inset:\s*0/);
-  assert.match(css, /opacity:\s*0\.52/);
-  assert.match(css, /prefers-reduced-motion:\s*reduce/);
-  assert.doesNotMatch(css, /#020617|canvas|pets|progress/i);
-  assert.doesNotMatch(
-    preview,
-    /loading-spinner|status-mark|status-progress|canvas|cookie|random/i,
-  );
-
-  assert.match(page, /export const metadata:\s*Metadata/);
-  assert.match(page, /"codex-preview": "development"/);
-  assert.match(page, /<SkeletonPreview \/>/);
-  assert.match(layout, /title:\s*"Starter Project"/);
-  assert.doesNotMatch(layout, /codex-preview|_sites-preview|themeColor|\bViewport\b/);
-  assert.doesNotMatch(css, /(^|\s)(html|body)\s*\{/m);
-
-  await assert.rejects(
-    access(new URL("public/_sites-preview", templateRoot)),
-  );
+test("文件管理器包含移动端、拖放、上传进度和对话框语义", async () => {
+  const [component, css] = await Promise.all([
+    readFile(new URL("../app/components/FileManager.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/file-manager.css", import.meta.url), "utf8"),
+  ]);
+  assert.match(component, /onDrop=/u);
+  assert.match(component, /upload\.onprogress/u);
+  assert.match(component, /<dialog/u);
+  assert.match(component, /aria-live="polite"/u);
+  assert.match(component, /aria-label="搜索文件"/u);
+  assert.match(css, /@media \(max-width: 760px\)/u);
+  assert.match(css, /:focus-visible/u);
+  assert.match(css, /prefers-reduced-motion/u);
 });

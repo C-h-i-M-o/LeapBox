@@ -1,15 +1,9 @@
-import type { Metadata } from "next";
-import { SkeletonPreview } from "./_sites-preview/SkeletonPreview";
+import { requireChatGPTUser } from "./chatgpt-auth";
+import { FileManager } from "./components/FileManager";
 
-export const metadata: Metadata = {
-  title: "Your site is taking shape",
-  description:
-    "Your first version will appear here automatically when it’s ready.",
-  other: {
-    "codex-preview": "development",
-  },
-};
+export const dynamic = "force-dynamic";
 
-export default function Home() {
-  return <SkeletonPreview />;
+export default async function Home() {
+  const user = await requireChatGPTUser("/");
+  return <FileManager displayName={user.displayName} email={user.email} />;
 }

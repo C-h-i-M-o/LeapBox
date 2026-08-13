@@ -37,7 +37,7 @@ test("已登录首屏直接呈现完整文件管理功能", async () => {
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/iu);
   const html = await response.text();
-  assert.match(html, /<title>跃匣 · 私人文件管理<\/title>/iu);
+  assert.match(html, /<title>跃匣 LeapBox · 私人文件管理<\/title>/iu);
   assert.match(html, /我的文件/);
   assert.match(html, /最近使用/);
   assert.match(html, /收藏/);
@@ -46,6 +46,7 @@ test("已登录首屏直接呈现完整文件管理功能", async () => {
   assert.match(html, /上传文件/);
   assert.match(html, /搜索文件/);
   assert.match(html, /跃匣主人/);
+  assert.match(html, /跃匣 LeapBox/);
   assert.doesNotMatch(html, /Your site is taking shape|codex-preview|react-loading-skeleton/iu);
 });
 
@@ -76,4 +77,13 @@ test("文件管理器包含移动端、拖放、上传进度和对话框语义",
   assert.match(css, /@media \(max-width: 760px\)/u);
   assert.match(css, /:focus-visible/u);
   assert.match(css, /prefers-reduced-motion/u);
+  assert.match(css, /\.mobile-upload-label/u);
+  assert.doesNotMatch(
+    css,
+    /\.top-actions \.primary-button \{[^}]*color:\s*transparent/isu,
+  );
+  assert.doesNotMatch(
+    css,
+    /\.view-tools select \{[^}]*color:\s*transparent/isu,
+  );
 });

@@ -369,7 +369,7 @@ export function FileManager({ displayName, email }: FileManagerProps) {
       <aside className={`sidebar ${sidebarOpen ? "sidebar-open" : ""}`} aria-label="文件导航">
         <div className="brand">
           <span className="brand-mark" aria-hidden="true"><i /><i /><i /></span>
-          <div><strong>跃匣</strong><span>PRIVATE FILES</span></div>
+          <div><strong>跃匣 <em>LeapBox</em></strong><span>PRIVATE FILES</span></div>
         </div>
         <nav>
           {NAV_ITEMS.map((navItem) => (
@@ -414,7 +414,7 @@ export function FileManager({ displayName, email }: FileManagerProps) {
           </div>
           <div className="top-actions">
             <button type="button" className="secondary-button" onClick={() => { setDialogValue(""); setDialog({ type: "new-folder" }); }} disabled={view !== "files"}>＋ 新建文件夹</button>
-            <button type="button" className="primary-button" onClick={chooseFiles} disabled={view !== "files"}>↑ 上传文件</button>
+            <button type="button" className="primary-button top-upload-button" onClick={chooseFiles} disabled={view !== "files"}><span aria-hidden="true">↑</span><span className="desktop-upload-label">上传文件</span><span className="mobile-upload-label">上传</span></button>
             <input ref={fileInputRef} className="visually-hidden" type="file" multiple onChange={handleFileSelection} />
           </div>
         </header>
@@ -435,7 +435,7 @@ export function FileManager({ displayName, email }: FileManagerProps) {
               <p>{loading ? "正在读取…" : `${items.length} 个项目`}</p>
             </div>
             <div className="view-tools">
-              <label><span className="visually-hidden">排序方式</span>
+              <label className="sort-control"><span className="mobile-sort-label" aria-hidden="true">排序</span><span className="visually-hidden">排序方式</span>
                 <select value={`${sort}:${direction}`} onChange={handleSort}>
                   <option value="updated:desc">最近更新</option>
                   <option value="updated:asc">最早更新</option>

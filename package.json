@@ -9,15 +9,18 @@
     "dev": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext dev",
     "build": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext build",
     "start": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext start",
-    "test": "npm run test:unit && npm run test:migration && npm run build && npm run test:rendered",
-    "test:unit": "node --experimental-strip-types --test tests/files-core.test.ts tests/file-store.test.ts",
+    "test": "npm run test:unit && npm run test:migration && npm run test:contracts && npm run build && npm run test:rendered",
+    "test:unit": "node --experimental-strip-types --test tests/files-core.test.ts tests/file-store.test.ts tests/upload-store.test.ts",
     "test:migration": "node --test tests/migration-contract.test.mjs",
+    "test:contracts": "node --test tests/upload-routes-contract.test.mjs",
     "test:rendered": "node --test tests/rendered-html.test.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate"
   },
   "dependencies": {
+    "@gsap/react": "^2.1.2",
     "drizzle-orm": "0.45.2",
+    "gsap": "^3.15.0",
     "react": "19.2.6",
     "react-dom": "19.2.6"
   },

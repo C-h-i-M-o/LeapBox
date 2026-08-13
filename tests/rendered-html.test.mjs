@@ -64,13 +64,20 @@ test("成品移除一次性预览骨架与依赖", async () => {
   await assert.doesNotReject(access(new URL("../app/components/file-manager.css", import.meta.url)));
 });
 
-test("文件管理器包含移动端、拖放、上传进度和对话框语义", async () => {
-  const [component, css] = await Promise.all([
+test("文件管理器包含移动端、文件夹上传、分片续传和对话框语义", async () => {
+  const [component, uploadClient, css] = await Promise.all([
     readFile(new URL("../app/components/FileManager.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/upload-client.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/components/file-manager.css", import.meta.url), "utf8"),
   ]);
   assert.match(component, /onDrop=/u);
-  assert.match(component, /upload\.onprogress/u);
+  assert.match(component, /webkitdirectory/u);
+  assert.match(component, /\/api\/folder-trees/u);
+  assert.match(uploadClient, /file\.slice\(/u);
+  assert.match(uploadClient, /\/api\/uploads/u);
+  assert.match(uploadClient, /indexedDB/u);
+  assert.match(uploadClient, /MAX_ACTIVE_PARTS\s*=\s*3/u);
+  assert.doesNotMatch(uploadClient, /formData\(|arrayBuffer\(/u);
   assert.match(component, /<dialog/u);
   assert.match(component, /aria-live="polite"/u);
   assert.match(component, /aria-label="搜索文件"/u);
@@ -86,4 +93,19 @@ test("文件管理器包含移动端、拖放、上传进度和对话框语义",
     css,
     /\.view-tools select \{[^}]*color:\s*transparent/isu,
   );
+});
+
+test("文件管理器支持多选批处理、轻量分页和 GSAP 减少动态效果", async () => {
+  const component = await readFile(
+    new URL("../app/components/FileManager.tsx", import.meta.url),
+    "utf8",
+  );
+  assert.match(component, /selectedIds/u);
+  assert.match(component, /shiftKey/u);
+  assert.match(component, /\/api\/items\/batch/u);
+  assert.match(component, /nextCursor/u);
+  assert.match(component, /AbortController/u);
+  assert.match(component, /setTimeout\([^]*?250/u);
+  assert.match(component, /useGSAP/u);
+  assert.match(component, /gsap\.matchMedia/u);
 });

@@ -4,13 +4,21 @@ import test from "node:test";
 import {
   MAX_TEXT_PREVIEW_BYTES,
   MAX_UPLOAD_BYTES,
+  MAX_BATCH_ITEMS,
+  UPLOAD_PART_BYTES,
   buildBreadcrumb,
   buildContentDisposition,
   classifyPreview,
+  decodePageCursor,
+  encodePageCursor,
   isMoveTargetAllowed,
   mapPublicItem,
   normalizeItemName,
+  parseRelativeFilePath,
   resolveSort,
+  validateBatchItemIds,
+  validateCompletedParts,
+  validateUploadPart,
   validateUploadSize,
 } from "../lib/files-core.ts";
 
@@ -32,11 +40,74 @@ test("文件名拒绝空值和超过 180 个 Unicode 字符的名称", () => {
   assert.throws(() => normalizeItemName("🙂".repeat(181)), /180/);
 });
 
-test("上传大小集中限制为空文件到 25 MiB", () => {
-  assert.equal(MAX_UPLOAD_BYTES, 25 * 1024 * 1024);
+test("上传大小集中限制为空文件到 5 GiB", () => {
+  assert.equal(MAX_UPLOAD_BYTES, 5 * 1024 * 1024 * 1024);
   assert.throws(() => validateUploadSize(0), /空文件/);
   assert.doesNotThrow(() => validateUploadSize(MAX_UPLOAD_BYTES));
-  assert.throws(() => validateUploadSize(MAX_UPLOAD_BYTES + 1), /25 MB/);
+  assert.throws(() => validateUploadSize(MAX_UPLOAD_BYTES + 1), /5 GB/);
+});
+
+test("上传分片固定为 8 MiB，最后一片允许更小", () => {
+  assert.equal(UPLOAD_PART_BYTES, 8 * 1024 * 1024);
+  const totalSize = UPLOAD_PART_BYTES * 2 + 7;
+  assert.doesNotThrow(() => validateUploadPart(1, UPLOAD_PART_BYTES, totalSize));
+  assert.doesNotThrow(() => validateUploadPart(2, UPLOAD_PART_BYTES, totalSize));
+  assert.doesNotThrow(() => validateUploadPart(3, 7, totalSize));
+  assert.throws(() => validateUploadPart(1, 7, totalSize), /分片大小/);
+  assert.throws(() => validateUploadPart(4, 1, totalSize), /分片编号/);
+});
+
+test("完成上传拒绝缺片、重复片和空 ETag", () => {
+  const totalSize = UPLOAD_PART_BYTES + 1;
+  assert.deepEqual(
+    validateCompletedParts(totalSize, [
+      { partNumber: 2, etag: "etag-2" },
+      { partNumber: 1, etag: "etag-1" },
+    ]),
+    [
+      { partNumber: 1, etag: "etag-1" },
+      { partNumber: 2, etag: "etag-2" },
+    ],
+  );
+  assert.throws(
+    () => validateCompletedParts(totalSize, [{ partNumber: 1, etag: "etag-1" }]),
+    /分片不完整/,
+  );
+  assert.throws(
+    () => validateCompletedParts(totalSize, [
+      { partNumber: 1, etag: "etag-1" },
+      { partNumber: 1, etag: "etag-1-copy" },
+    ]),
+    /分片编号/,
+  );
+});
+
+test("文件夹相对路径逐段校验并拆分目录与文件名", () => {
+  assert.deepEqual(parseRelativeFilePath("项目/素材/封面.png"), {
+    directories: ["项目", "素材"],
+    fileName: "封面.png",
+    relativePath: "项目/素材/封面.png",
+  });
+  assert.throws(() => parseRelativeFilePath("../secret.txt"), /相对路径/);
+  assert.throws(() => parseRelativeFilePath("项目//secret.txt"), /相对路径/);
+});
+
+test("批量操作只接受最多 100 个不重复项目", () => {
+  assert.equal(MAX_BATCH_ITEMS, 100);
+  assert.deepEqual(validateBatchItemIds(["a", "b"]), ["a", "b"]);
+  assert.throws(() => validateBatchItemIds(["a", "a"]), /重复/);
+  assert.throws(
+    () => validateBatchItemIds(Array.from({ length: 101 }, (_, index) => `id-${index}`)),
+    /100/,
+  );
+});
+
+test("分页游标隐藏偏移量并拒绝篡改值", () => {
+  const cursor = encodePageCursor(100);
+  assert.notEqual(cursor, "100");
+  assert.equal(decodePageCursor(cursor), 100);
+  assert.equal(decodePageCursor(null), 0);
+  assert.throws(() => decodePageCursor("not-a-cursor"), /分页游标/);
 });
 
 test("排序参数只能映射到允许的列和方向", () => {

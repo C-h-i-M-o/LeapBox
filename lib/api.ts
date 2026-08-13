@@ -1,10 +1,12 @@
 import { getChatGPTUser, type ChatGPTUser } from "@/app/chatgpt-auth";
 import { FileStoreError, type FileStore } from "./file-store.ts";
-import { getFileStore } from "./server-files.ts";
+import { getFileServices } from "./server-files.ts";
+import type { UploadStore } from "./upload-store.ts";
 
 type ApiContext = {
   user: ChatGPTUser;
   store: FileStore;
+  uploads: UploadStore;
 };
 
 export async function withApiContext(
@@ -14,9 +16,9 @@ export async function withApiContext(
   if (!user) return apiError("请先使用 ChatGPT 登录", "UNAUTHENTICATED", 401);
 
   try {
-    const store = getFileStore();
+    const { store, uploads } = getFileServices();
     await store.syncUser(user);
-    return await handler({ user, store });
+    return await handler({ user, store, uploads });
   } catch (error) {
     if (error instanceof FileStoreError) {
       return apiError(error.message, error.code, error.status);

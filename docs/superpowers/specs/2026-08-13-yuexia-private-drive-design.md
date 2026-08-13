@@ -65,6 +65,18 @@
 
 索引覆盖 `(owner_id, status, updated_at)` 与 `expires_at`。创建会话时校验父目录、名称和大小；完成前再次校验父目录和同名冲突。会话只能由所有者访问。过期 multipart 由 R2 生命周期清理，应用在后续访问时同步标记失效。
 
+### 3.4 `upload_parts`
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `session_id` | text not null | 所属 `upload_sessions.id`，级联删除 |
+| `part_number` | integer not null | 从 1 开始的分片号 |
+| `etag` | text not null | R2 返回的分片 ETag |
+| `size_bytes` | integer not null | 该分片实际大小 |
+| `uploaded_at` | integer not null | 完成时间 |
+
+主键为 `(session_id, part_number)`。上传相同分片号时以新的 ETag 覆盖旧记录；`GET /api/uploads/:id` 只返回当前所有者会话对应的这些公开分片字段，以便刷新后准确跳过已成功分片。
+
 ## 4. 服务端接口
 
 所有接口拒绝未登录请求；请求中的 `ownerId` 一律拒绝。资源只能通过当前用户与资源 ID 联合查询。

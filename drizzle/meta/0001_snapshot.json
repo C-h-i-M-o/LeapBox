@@ -1,0 +1,422 @@
+{
+  "version": "6",
+  "dialect": "sqlite",
+  "id": "fa044a23-964f-4b48-855d-0067b616944b",
+  "prevId": "8eb1de2f-ba4c-4fbe-a617-dca7482ebeab",
+  "tables": {
+    "items": {
+      "name": "items",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "owner_id": {
+          "name": "owner_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "type": {
+          "name": "type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "parent_id": {
+          "name": "parent_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name_key": {
+          "name": "name_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "object_key": {
+          "name": "object_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "mime_type": {
+          "name": "mime_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "size_bytes": {
+          "name": "size_bytes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "is_favorite": {
+          "name": "is_favorite",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "last_accessed_at": {
+          "name": "last_accessed_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "deleted_at": {
+          "name": "deleted_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "original_parent_id": {
+          "name": "original_parent_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "idx_items_owner_id": {
+          "name": "idx_items_owner_id",
+          "columns": [
+            "owner_id"
+          ],
+          "isUnique": false
+        },
+        "idx_items_parent_id": {
+          "name": "idx_items_parent_id",
+          "columns": [
+            "parent_id"
+          ],
+          "isUnique": false
+        },
+        "idx_items_owner_deleted_updated": {
+          "name": "idx_items_owner_deleted_updated",
+          "columns": [
+            "owner_id",
+            "deleted_at",
+            "updated_at"
+          ],
+          "isUnique": false
+        },
+        "idx_items_owner_last_accessed": {
+          "name": "idx_items_owner_last_accessed",
+          "columns": [
+            "owner_id",
+            "last_accessed_at"
+          ],
+          "isUnique": false
+        },
+        "idx_items_active_sibling_name": {
+          "name": "idx_items_active_sibling_name",
+          "columns": [
+            "owner_id",
+            "parent_id",
+            "name_key"
+          ],
+          "isUnique": true,
+          "where": "\"items\".\"deleted_at\" is null and \"items\".\"parent_id\" is not null"
+        },
+        "idx_items_active_root_name": {
+          "name": "idx_items_active_root_name",
+          "columns": [
+            "owner_id",
+            "name_key"
+          ],
+          "isUnique": true,
+          "where": "\"items\".\"deleted_at\" is null and \"items\".\"parent_id\" is null"
+        }
+      },
+      "foreignKeys": {
+        "items_owner_id_users_id_fk": {
+          "name": "items_owner_id_users_id_fk",
+          "tableFrom": "items",
+          "tableTo": "users",
+          "columnsFrom": [
+            "owner_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "items_type_check": {
+          "name": "items_type_check",
+          "value": "\"items\".\"type\" in ('file', 'folder')"
+        },
+        "items_favorite_check": {
+          "name": "items_favorite_check",
+          "value": "\"items\".\"is_favorite\" in (0, 1)"
+        },
+        "items_size_check": {
+          "name": "items_size_check",
+          "value": "\"items\".\"size_bytes\" >= 0"
+        },
+        "items_file_fields_check": {
+          "name": "items_file_fields_check",
+          "value": "(\"items\".\"type\" = 'file' and \"items\".\"object_key\" is not null and \"items\".\"mime_type\" is not null) or (\"items\".\"type\" = 'folder' and \"items\".\"object_key\" is null and \"items\".\"mime_type\" is null and \"items\".\"size_bytes\" = 0)"
+        }
+      }
+    },
+    "upload_sessions": {
+      "name": "upload_sessions",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "owner_id": {
+          "name": "owner_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "parent_id": {
+          "name": "parent_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name_key": {
+          "name": "name_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "relative_path": {
+          "name": "relative_path",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "object_key": {
+          "name": "object_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "r2_upload_id": {
+          "name": "r2_upload_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "mime_type": {
+          "name": "mime_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "size_bytes": {
+          "name": "size_bytes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "part_size_bytes": {
+          "name": "part_size_bytes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "idx_upload_sessions_owner_status_updated": {
+          "name": "idx_upload_sessions_owner_status_updated",
+          "columns": [
+            "owner_id",
+            "status",
+            "updated_at"
+          ],
+          "isUnique": false
+        },
+        "idx_upload_sessions_expires_at": {
+          "name": "idx_upload_sessions_expires_at",
+          "columns": [
+            "expires_at"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "upload_sessions_owner_id_users_id_fk": {
+          "name": "upload_sessions_owner_id_users_id_fk",
+          "tableFrom": "upload_sessions",
+          "tableTo": "users",
+          "columnsFrom": [
+            "owner_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "upload_sessions_status_check": {
+          "name": "upload_sessions_status_check",
+          "value": "\"upload_sessions\".\"status\" in ('active', 'completing', 'completed', 'aborted')"
+        },
+        "upload_sessions_size_check": {
+          "name": "upload_sessions_size_check",
+          "value": "\"upload_sessions\".\"size_bytes\" > 0 and \"upload_sessions\".\"size_bytes\" <= 5368709120"
+        },
+        "upload_sessions_part_size_check": {
+          "name": "upload_sessions_part_size_check",
+          "value": "\"upload_sessions\".\"part_size_bytes\" = 8388608"
+        }
+      }
+    },
+    "users": {
+      "name": "users",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "idx_users_updated_at": {
+          "name": "idx_users_updated_at",
+          "columns": [
+            "updated_at"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    }
+  },
+  "views": {},
+  "enums": {},
+  "_meta": {
+    "schemas": {},
+    "tables": {},
+    "columns": {}
+  },
+  "internal": {
+    "indexes": {}
+  }
+}

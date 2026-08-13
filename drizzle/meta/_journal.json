@@ -8,6 +8,20 @@
       "when": 1786589255598,
       "tag": "0000_loud_bug",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1786604694264,
+      "tag": "0001_last_reavers",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1786604803022,
+      "tag": "0002_sour_prima",
+      "breakpoints": true
     }
   ]
 }

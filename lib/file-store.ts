@@ -1,9 +1,12 @@
 import {
   buildBreadcrumb,
+  decodePageCursor,
+  encodePageCursor,
   isMoveTargetAllowed,
   mapPublicItem,
   normalizeItemName,
   resolveSort,
+  validateBatchItemIds,
   validateUploadSize,
   type BreadcrumbEntry,
   type FolderLink,
@@ -47,12 +50,14 @@ export type ListOptions = {
   query?: string;
   sort?: string | null;
   direction?: string | null;
+  cursor?: string | null;
 };
 
 export type ListResult = {
   items: PublicItem[];
   breadcrumb: BreadcrumbEntry[];
   validDirectory: boolean;
+  nextCursor: string | null;
 };
 
 export type StorageSummary = {
@@ -65,6 +70,18 @@ export type FolderOption = {
   id: string;
   name: string;
   location: string;
+};
+
+export type BatchItemsInput =
+  | { action: "move"; ids: unknown; parentId: string | null }
+  | { action: "favorite"; ids: unknown; favorite: boolean }
+  | { action: "trash"; ids: unknown; confirmedDescendantCount?: number }
+  | { action: "restore"; ids: unknown }
+  | { action: "delete"; ids: unknown };
+
+export type BatchItemsResult = {
+  affected: number;
+  items?: PublicItem[];
 };
 
 type CountRow = {
@@ -95,6 +112,8 @@ const ITEM_SELECT = `
   deleted_at as deletedAt,
   original_parent_id as originalParentId
 `;
+
+const PAGE_SIZE = 100;
 
 export class FileStoreError extends Error {
   readonly code: string;
@@ -221,17 +240,18 @@ export class FileStore {
     }
 
     const { column, direction } = resolveSort(options.sort ?? null, options.direction ?? null);
+    const offset = decodePageCursor(options.cursor);
     const orderSql = `case when type = 'folder' then 0 else 1 end asc, ${column} ${direction}, id asc`;
     let statement: FileStatement;
 
     if (options.view === "recent") {
       statement = this.#database
-        .prepare(`select ${ITEM_SELECT} from items where owner_id = ? and deleted_at is null order by last_accessed_at desc, id asc limit 200`)
-        .bind(ownerId);
+        .prepare(`select ${ITEM_SELECT} from items where owner_id = ? and deleted_at is null order by last_accessed_at desc, id asc limit ? offset ?`)
+        .bind(ownerId, PAGE_SIZE + 1, offset);
     } else if (options.view === "favorites") {
       statement = this.#database
-        .prepare(`select ${ITEM_SELECT} from items where owner_id = ? and deleted_at is null and is_favorite = 1 order by ${orderSql} limit 300`)
-        .bind(ownerId);
+        .prepare(`select ${ITEM_SELECT} from items where owner_id = ? and deleted_at is null and is_favorite = 1 order by ${orderSql} limit ? offset ?`)
+        .bind(ownerId, PAGE_SIZE + 1, offset);
     } else if (options.view === "trash") {
       statement = this.#database
         .prepare(`
@@ -245,31 +265,35 @@ export class FileStore {
               )
             )
           order by i.deleted_at desc, i.id asc
-          limit 300
+          limit ? offset ?
         `)
-        .bind(ownerId, ownerId);
+        .bind(ownerId, ownerId, PAGE_SIZE + 1, offset);
     } else if (options.view === "search") {
       const query = (options.query ?? "").trim().normalize("NFC").toLocaleLowerCase();
       statement = this.#database
-        .prepare(`select ${ITEM_SELECT} from items where owner_id = ? and deleted_at is null and name_key like ? escape '\\' order by ${orderSql} limit 300`)
-        .bind(ownerId, `%${escapeLike(query)}%`);
+        .prepare(`select ${ITEM_SELECT} from items where owner_id = ? and deleted_at is null and name_key like ? escape '\\' order by ${orderSql} limit ? offset ?`)
+        .bind(ownerId, `%${escapeLike(query)}%`, PAGE_SIZE + 1, offset);
     } else {
       const parentClause = parentId === null ? "parent_id is null" : "parent_id = ?";
       statement = this.#database
-        .prepare(`select ${ITEM_SELECT} from items where owner_id = ? and deleted_at is null and ${parentClause} order by ${orderSql} limit 300`)
-        .bind(...(parentId === null ? [ownerId] : [ownerId, parentId]));
+        .prepare(`select ${ITEM_SELECT} from items where owner_id = ? and deleted_at is null and ${parentClause} order by ${orderSql} limit ? offset ?`)
+        .bind(...(parentId === null
+          ? [ownerId, PAGE_SIZE + 1, offset]
+          : [ownerId, parentId, PAGE_SIZE + 1, offset]));
     }
 
     const { results } = await statement.all<ItemRecord>();
+    const pageItems = results.slice(0, PAGE_SIZE);
     const includeLocation = options.view === "search" || options.view === "recent" || options.view === "favorites";
     return {
-      items: results.map((item) =>
+      items: pageItems.map((item) =>
         mapPublicItem(item, includeLocation ? folderLocation(item.parentId, folders) : undefined),
       ),
       breadcrumb: breadcrumbResult.valid
         ? breadcrumbResult.entries
         : buildBreadcrumb(null, folders).entries,
       validDirectory: breadcrumbResult.valid,
+      nextCursor: results.length > PAGE_SIZE ? encodePageCursor(offset + PAGE_SIZE) : null,
     };
   }
 
@@ -305,6 +329,120 @@ export class FileStore {
           "zh-CN",
         ),
       );
+  }
+
+  async createFolderTree(
+    ownerId: string,
+    parentId: string | null,
+    directoryPaths: string[],
+  ): Promise<Record<string, string>> {
+    await this.#requireParent(ownerId, parentId);
+    if (!Array.isArray(directoryPaths) || directoryPaths.length === 0 || directoryPaths.length > 500) {
+      throw new FileStoreError("文件夹路径数量必须在 1 到 500 之间", "INVALID_FOLDER_TREE", 400);
+    }
+    const normalizedPaths = [...new Set(directoryPaths.map(normalizeDirectoryPath))]
+      .sort((left, right) => pathDepth(left) - pathDepth(right) || left.localeCompare(right, "zh-CN"));
+    const { results: activeItems } = await this.#database
+      .prepare(`select ${ITEM_SELECT} from items where owner_id = ? and deleted_at is null`)
+      .bind(ownerId)
+      .all<ItemRecord>();
+    const byParentAndName = new Map(
+      activeItems.map((item) => [siblingKey(item.parentId, item.nameKey), item]),
+    );
+    const mapping: Record<string, string> = {};
+    const planned: Array<{ id: string; parentId: string | null; name: string; nameKey: string }> = [];
+
+    for (const path of normalizedPaths) {
+      let currentParent = parentId;
+      let currentPath = "";
+      for (const rawSegment of path.split("/")) {
+        const { name, nameKey } = normalizeItemName(rawSegment);
+        currentPath = currentPath ? `${currentPath}/${name}` : name;
+        const existing = byParentAndName.get(siblingKey(currentParent, nameKey));
+        if (existing) {
+          if (existing.type !== "folder") throw this.#conflictError();
+          currentParent = existing.id;
+          mapping[currentPath] = existing.id;
+          continue;
+        }
+        const id = crypto.randomUUID();
+        const folder: ItemRecord = {
+          id,
+          ownerId,
+          type: "folder",
+          parentId: currentParent,
+          name,
+          nameKey,
+          objectKey: null,
+          mimeType: null,
+          sizeBytes: 0,
+          isFavorite: 0,
+          createdAt: 0,
+          updatedAt: 0,
+          lastAccessedAt: 0,
+          deletedAt: null,
+          originalParentId: null,
+        };
+        byParentAndName.set(siblingKey(currentParent, nameKey), folder);
+        planned.push({ id, parentId: currentParent, name, nameKey });
+        currentParent = id;
+        mapping[currentPath] = id;
+      }
+    }
+
+    const now = Date.now();
+    try {
+      await this.#database.batch(
+        planned.map((folder) =>
+          this.#database
+            .prepare(`
+              insert into items (
+                id, owner_id, type, parent_id, name, name_key, object_key, mime_type,
+                size_bytes, is_favorite, created_at, updated_at, last_accessed_at,
+                deleted_at, original_parent_id
+              ) values (?, ?, 'folder', ?, ?, ?, null, null, 0, 0, ?, ?, ?, null, null)
+            `)
+            .bind(
+              folder.id,
+              ownerId,
+              folder.parentId,
+              folder.name,
+              folder.nameKey,
+              now,
+              now,
+              now,
+            ),
+        ),
+      );
+    } catch (error) {
+      throw this.#toWriteError(error);
+    }
+    return mapping;
+  }
+
+  async batchItems(ownerId: string, input: BatchItemsInput): Promise<BatchItemsResult> {
+    const ids = validateBatchItemIds(input.ids);
+    if (input.action === "move") return this.#batchMove(ownerId, ids, input.parentId);
+    if (input.action === "favorite") return this.#batchFavorite(ownerId, ids, input.favorite);
+    if (input.action === "trash") {
+      return this.#batchTrash(ownerId, ids, input.confirmedDescendantCount);
+    }
+    if (input.action === "restore") return this.#batchRestore(ownerId, ids);
+    return this.#batchDelete(ownerId, ids);
+  }
+
+  async getBatchTrashCount(
+    ownerId: string,
+    rawIds: unknown,
+  ): Promise<{ selected: number; descendants: number; total: number }> {
+    const ids = validateBatchItemIds(rawIds);
+    await this.#requireItems(ownerId, ids, false);
+    const entries = await this.#combinedSubtrees(ownerId, ids, false);
+    return {
+      selected: ids.length,
+      descendants: entries.size - ids.length,
+      total: entries.size,
+    };
   }
 
   async renameItem(ownerId: string, itemId: string, rawName: string): Promise<PublicItem> {
@@ -479,6 +617,213 @@ export class FileStore {
       .run();
   }
 
+  async #batchMove(
+    ownerId: string,
+    ids: string[],
+    parentId: string | null,
+  ): Promise<BatchItemsResult> {
+    const items = await this.#requireItems(ownerId, ids, false);
+    await this.#requireParent(ownerId, parentId);
+    const folders = await this.#activeFolders(ownerId);
+    for (const item of items) {
+      if (
+        item.type === "folder" &&
+        !isMoveTargetAllowed(item.id, parentId, folders)
+      ) {
+        throw new FileStoreError("文件夹不能移动到自身或子目录", "INVALID_MOVE", 400);
+      }
+    }
+    const selectedNames = new Set<string>();
+    for (const item of items) {
+      if (selectedNames.has(item.nameKey)) throw this.#conflictError();
+      selectedNames.add(item.nameKey);
+    }
+    const { results: targetItems } = await this.#database
+      .prepare(`
+        select ${ITEM_SELECT} from items
+        where owner_id = ? and deleted_at is null
+          and ${parentId === null ? "parent_id is null" : "parent_id = ?"}
+      `)
+      .bind(...(parentId === null ? [ownerId] : [ownerId, parentId]))
+      .all<ItemRecord>();
+    const selectedIds = new Set(ids);
+    if (
+      targetItems.some(
+        (target) => !selectedIds.has(target.id) && selectedNames.has(target.nameKey),
+      )
+    ) {
+      throw this.#conflictError();
+    }
+    const now = Date.now();
+    try {
+      await this.#database.batch(
+        items.map((item) =>
+          this.#database
+            .prepare("update items set parent_id = ?, updated_at = ? where id = ? and owner_id = ? and deleted_at is null")
+            .bind(parentId, now, item.id, ownerId),
+        ),
+      );
+    } catch (error) {
+      throw this.#toWriteError(error);
+    }
+    return {
+      affected: items.length,
+      items: await this.#publicItems(ownerId, ids, false),
+    };
+  }
+
+  async #batchFavorite(
+    ownerId: string,
+    ids: string[],
+    favorite: boolean,
+  ): Promise<BatchItemsResult> {
+    const items = await this.#requireItems(ownerId, ids, false);
+    const now = Date.now();
+    await this.#database.batch(
+      items.map((item) =>
+        this.#database
+          .prepare("update items set is_favorite = ?, updated_at = ? where id = ? and owner_id = ? and deleted_at is null")
+          .bind(favorite ? 1 : 0, now, item.id, ownerId),
+      ),
+    );
+    return {
+      affected: items.length,
+      items: await this.#publicItems(ownerId, ids, false),
+    };
+  }
+
+  async #batchTrash(
+    ownerId: string,
+    ids: string[],
+    confirmedDescendantCount?: number,
+  ): Promise<BatchItemsResult> {
+    await this.#requireItems(ownerId, ids, false);
+    const entries = await this.#combinedSubtrees(ownerId, ids, false);
+    const descendantCount = entries.size - ids.length;
+    if (descendantCount > 0 && confirmedDescendantCount !== descendantCount) {
+      throw new FileStoreError(
+        `所选文件夹内共有 ${descendantCount} 个其他项目，确认数量已变化，请重新确认`,
+        "CONFIRMATION_MISMATCH",
+        409,
+      );
+    }
+    const now = Date.now();
+    await this.#database.batch(
+      [...entries.values()].map((entry) =>
+        this.#database
+          .prepare("update items set deleted_at = ?, original_parent_id = parent_id, updated_at = ? where id = ? and owner_id = ? and deleted_at is null")
+          .bind(now, now, entry.id, ownerId),
+      ),
+    );
+    return { affected: entries.size };
+  }
+
+  async #batchRestore(ownerId: string, ids: string[]): Promise<BatchItemsResult> {
+    const roots = await this.#requireItems(ownerId, ids, true);
+    if (roots.some((item) => item.deletedAt === null)) {
+      throw new FileStoreError("部分项目不在回收站中", "NOT_TRASHED", 409);
+    }
+    const rootTargets = new Map<string, string | null>();
+    const targetNames = new Set<string>();
+    for (const root of roots) {
+      let targetParent = root.originalParentId;
+      if (targetParent !== null) {
+        const parent = await this.#findItem(ownerId, targetParent, false);
+        if (!parent || parent.type !== "folder") targetParent = null;
+      }
+      const key = siblingKey(targetParent, root.nameKey);
+      if (targetNames.has(key)) throw this.#conflictError();
+      targetNames.add(key);
+      await this.#assertNameAvailable(ownerId, targetParent, root.nameKey, root.id);
+      rootTargets.set(root.id, targetParent);
+    }
+    const entries = await this.#combinedSubtrees(ownerId, ids, true);
+    const now = Date.now();
+    try {
+      await this.#database.batch(
+        [...entries.values()].map((entry) => {
+          if (rootTargets.has(entry.id)) {
+            return this.#database
+              .prepare("update items set parent_id = ?, deleted_at = null, original_parent_id = null, updated_at = ? where id = ? and owner_id = ?")
+              .bind(rootTargets.get(entry.id) ?? null, now, entry.id, ownerId);
+          }
+          return this.#database
+            .prepare("update items set deleted_at = null, original_parent_id = null, updated_at = ? where id = ? and owner_id = ?")
+            .bind(now, entry.id, ownerId);
+        }),
+      );
+    } catch (error) {
+      throw this.#toWriteError(error);
+    }
+    return { affected: entries.size };
+  }
+
+  async #batchDelete(ownerId: string, ids: string[]): Promise<BatchItemsResult> {
+    const roots = await this.#requireItems(ownerId, ids, true);
+    if (roots.some((item) => item.deletedAt === null)) {
+      throw new FileStoreError("部分项目不在回收站中", "NOT_TRASHED", 409);
+    }
+    const entries = await this.#combinedSubtrees(ownerId, ids, true);
+    for (const entry of entries.values()) {
+      if (entry.type === "file" && entry.objectKey) await this.#objects.delete(entry.objectKey);
+    }
+    await this.#database.batch(
+      [...entries.values()].map((entry) =>
+        this.#database
+          .prepare("delete from items where id = ? and owner_id = ? and deleted_at is not null")
+          .bind(entry.id, ownerId),
+      ),
+    );
+    return { affected: entries.size };
+  }
+
+  async #requireItems(
+    ownerId: string,
+    ids: string[],
+    includeDeleted: boolean,
+  ): Promise<ItemRecord[]> {
+    const placeholders = ids.map(() => "?").join(", ");
+    const { results } = await this.#database
+      .prepare(`
+        select ${ITEM_SELECT} from items
+        where owner_id = ? and id in (${placeholders})
+          ${includeDeleted ? "" : "and deleted_at is null"}
+      `)
+      .bind(ownerId, ...ids)
+      .all<ItemRecord>();
+    if (results.length !== ids.length) {
+      throw new FileStoreError("部分项目不存在或无权访问", "FILES_NOT_FOUND", 404);
+    }
+    const byId = new Map(results.map((item) => [item.id, item]));
+    return ids.map((id) => {
+      const item = byId.get(id);
+      if (!item) throw new FileStoreError("部分项目不存在", "FILES_NOT_FOUND", 404);
+      return item;
+    });
+  }
+
+  async #publicItems(
+    ownerId: string,
+    ids: string[],
+    includeDeleted: boolean,
+  ): Promise<PublicItem[]> {
+    return (await this.#requireItems(ownerId, ids, includeDeleted)).map((item) => mapPublicItem(item));
+  }
+
+  async #combinedSubtrees(
+    ownerId: string,
+    ids: string[],
+    includeDeleted: boolean,
+  ): Promise<Map<string, ItemRecord>> {
+    const entries = new Map<string, ItemRecord>();
+    for (const id of ids) {
+      for (const item of await this.#subtree(ownerId, id, includeDeleted)) {
+        entries.set(item.id, item);
+      }
+    }
+    return entries;
+  }
+
   async #requireParent(ownerId: string, parentId: string | null): Promise<void> {
     if (parentId === null) return;
     const parent = await this.#findItem(ownerId, parentId, false);
@@ -579,4 +924,27 @@ function folderLocation(parentId: string | null, folders: FolderLink[]): string 
   const breadcrumb = buildBreadcrumb(parentId, folders);
   if (!breadcrumb.valid) return "我的文件";
   return breadcrumb.entries.map((entry) => entry.name).join(" / ");
+}
+
+function normalizeDirectoryPath(value: string): string {
+  if (typeof value !== "string" || !value || value.startsWith("/") || value.endsWith("/")) {
+    throw new FileStoreError("文件夹相对路径不正确", "INVALID_FOLDER_PATH", 400);
+  }
+  const segments = value.split("/");
+  if (segments.length === 0 || segments.length > 50 || segments.some((segment) => !segment)) {
+    throw new FileStoreError("文件夹相对路径不正确", "INVALID_FOLDER_PATH", 400);
+  }
+  try {
+    return segments.map((segment) => normalizeItemName(segment).name).join("/");
+  } catch {
+    throw new FileStoreError("文件夹相对路径不正确", "INVALID_FOLDER_PATH", 400);
+  }
+}
+
+function pathDepth(value: string): number {
+  return value.split("/").length;
+}
+
+function siblingKey(parentId: string | null, nameKey: string): string {
+  return `${parentId ?? ""}\u0000${nameKey}`;
 }

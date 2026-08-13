@@ -33,7 +33,6 @@ export async function GET(request: Request, context: RouteContext): Promise<Resp
 
     if (mode === "preview" && previewKind === "text") {
       headers.set("Content-Type", "text/plain; charset=utf-8");
-      return new Response(await object.arrayBuffer(), { headers });
     }
     return new Response(object.body, { headers });
   });

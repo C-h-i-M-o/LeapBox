@@ -343,3 +343,353 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
 }
+
+/* 大文件与批量整理升级 */
+.drive-shell {
+  background: #f4f7f6;
+}
+
+.topbar {
+  background: rgb(244 247 246 / 96%);
+  backdrop-filter: none;
+}
+
+.brand {
+  min-height: 48px;
+  padding-bottom: 30px;
+}
+
+.brand-mark {
+  position: static;
+  display: block;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 auto;
+  object-fit: contain;
+  overflow: visible;
+  background: transparent;
+  border-radius: 0;
+  transform: none;
+}
+
+.upload-actions,
+.empty-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.folder-upload-button {
+  white-space: nowrap;
+}
+
+.folder-upload-icon {
+  display: none;
+}
+
+.refresh-indicator {
+  color: var(--teal-dark);
+  font-size: 11px;
+}
+
+.refresh-indicator::before {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 6px;
+  content: "";
+  background: var(--teal);
+  border-radius: 50%;
+  animation: refresh-pulse 1s ease-in-out infinite alternate;
+}
+
+.file-row {
+  grid-template-columns: 30px minmax(230px, 2fr) minmax(80px, .65fr) minmax(72px, .6fr) minmax(120px, .8fr) minmax(210px, 1.25fr);
+}
+
+.selection-cell,
+.table-header > span:first-child {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+input[type="checkbox"] {
+  width: 17px;
+  height: 17px;
+  margin: 0;
+  accent-color: var(--teal);
+  cursor: pointer;
+}
+
+.selected-item {
+  background: #edf7f5;
+  box-shadow: inset 3px 0 var(--teal);
+}
+
+.file-card.selected-item {
+  border-color: #73aaa4;
+  box-shadow: inset 0 0 0 1px #73aaa4, 0 10px 25px rgb(18 49 58 / 7%);
+}
+
+.file-card header {
+  display: grid;
+  grid-template-columns: 22px 1fr 28px;
+  justify-items: center;
+  gap: 9px;
+}
+
+.file-card header > input {
+  justify-self: start;
+}
+
+.file-card header > .favorite-button {
+  justify-self: end;
+}
+
+.load-more {
+  display: flex;
+  padding: 18px;
+  justify-content: center;
+  border-top: 1px solid #e9ebe6;
+}
+
+.batch-toolbar {
+  position: fixed;
+  z-index: 45;
+  left: calc(248px + (100vw - 248px) / 2);
+  bottom: 24px;
+  display: flex;
+  min-height: 54px;
+  padding: 7px 8px 7px 17px;
+  align-items: center;
+  gap: 5px;
+  color: white;
+  background: #15353d;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 13px;
+  box-shadow: 0 18px 48px rgb(8 35 41 / 24%);
+  transform: translateX(-50%);
+}
+
+.batch-toolbar strong {
+  margin-right: 8px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.batch-toolbar button {
+  min-height: 38px;
+  padding: 0 11px;
+  color: #e8f2f0;
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.batch-toolbar button:hover {
+  color: white;
+  background: rgb(255 255 255 / 9%);
+}
+
+.batch-toolbar .danger-link:hover {
+  color: #ffd5d1;
+  background: rgb(207 79 70 / 22%);
+}
+
+.batch-toolbar .batch-close {
+  width: 38px;
+  padding: 0;
+  color: #a9bfbd;
+  font-size: 19px;
+}
+
+.upload-panel {
+  max-height: min(560px, calc(100dvh - 120px));
+  overflow-y: auto;
+}
+
+.upload-panel > header {
+  position: sticky;
+  z-index: 1;
+  top: 0;
+  gap: 8px;
+}
+
+.upload-panel > header > span {
+  margin-left: auto;
+  color: #a9c3c0;
+  font-size: 10px;
+}
+
+.upload-task {
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+}
+
+.upload-task-actions {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+}
+
+.upload-task-actions button {
+  padding: 2px 4px;
+  color: var(--teal-dark);
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 9px;
+}
+
+.upload-task-actions .danger-link {
+  color: var(--coral);
+}
+
+.upload-status.paused {
+  color: #6c581a;
+  background: #fff0be;
+}
+
+.upload-status.cancelled {
+  color: #697574;
+  background: #e7ebe9;
+}
+
+.progress i {
+  width: 100%;
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform .15s linear;
+}
+
+@keyframes refresh-pulse {
+  from { opacity: .35; transform: scale(.8); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@media (max-width: 1180px) {
+  .folder-upload-button {
+    width: 42px;
+    padding: 0;
+    overflow: hidden;
+    color: var(--ink);
+  }
+
+  .folder-upload-icon {
+    display: inline;
+    font-size: 16px;
+  }
+
+  .folder-upload-label {
+    display: none;
+  }
+}
+
+@media (max-width: 1020px) {
+  .file-row {
+    grid-template-columns: 30px minmax(220px, 2fr) 90px 120px minmax(180px, 1fr);
+  }
+
+  .file-row > span:nth-child(4),
+  .table-header > span:nth-child(4) {
+    display: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .top-actions {
+    gap: 5px;
+  }
+
+  .upload-actions {
+    gap: 5px;
+  }
+
+  .folder-upload-button {
+    display: inline-flex !important;
+    min-width: 42px;
+    min-height: 44px;
+  }
+
+  .top-actions .primary-button,
+  .mobile-menu,
+  .search-wrap {
+    min-height: 44px;
+  }
+
+  .new-folder-button {
+    display: none !important;
+  }
+
+  .file-row {
+    grid-template-columns: 30px minmax(0, 1fr) auto;
+  }
+
+  .file-row .selection-cell {
+    display: flex !important;
+  }
+
+  .file-row .file-name {
+    grid-column: 2;
+  }
+
+  .file-row .row-actions {
+    grid-column: 3;
+  }
+
+  .file-row > span[role="cell"]:not(.selection-cell) {
+    display: none;
+  }
+
+  .row-actions button,
+  .row-actions a {
+    min-height: 44px;
+  }
+
+  .batch-toolbar {
+    right: 12px;
+    bottom: 12px;
+    left: 12px;
+    min-height: 58px;
+    padding-left: 12px;
+    overflow-x: auto;
+    transform: none;
+  }
+
+  .batch-toolbar button {
+    min-height: 44px;
+    white-space: nowrap;
+  }
+
+  .upload-panel {
+    bottom: 82px;
+  }
+}
+
+@media (max-width: 520px) {
+  .file-row {
+    grid-template-columns: 28px minmax(0, 1fr);
+  }
+
+  .file-row .row-actions {
+    grid-column: 2;
+    justify-self: start;
+  }
+
+  .batch-toolbar strong {
+    position: sticky;
+    left: 0;
+    padding-right: 8px;
+    background: #15353d;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .refresh-indicator::before {
+    animation: none;
+  }
+}

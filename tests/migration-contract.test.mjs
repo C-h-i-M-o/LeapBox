@@ -12,6 +12,14 @@ async function readInitialMigration() {
   return readFile(new URL(migrationName, drizzleUrl), "utf8");
 }
 
+async function readAllMigrations() {
+  const files = (await readdir(drizzleUrl))
+    .filter((name) => /^\d{4}_.+\.sql$/u.test(name))
+    .sort();
+  assert.ok(files.length > 0, "缺少 D1 迁移");
+  return Promise.all(files.map((name) => readFile(new URL(name, drizzleUrl), "utf8")));
+}
+
 test("初始迁移能在空 SQLite 数据库完整执行", async () => {
   const sql = (await readInitialMigration()).replaceAll(
     "--> statement-breakpoint",
@@ -55,4 +63,38 @@ test("同目录重名约束同时覆盖根目录和普通文件夹", async () =>
     /UNIQUE constraint failed/,
   );
   database.close();
+});
+
+test("升级迁移创建受约束的 multipart 上传会话表", async () => {
+  const migrations = await readAllMigrations();
+  const database = new DatabaseSync(":memory:");
+  try {
+    for (const sql of migrations) {
+      database.exec(sql.replaceAll("--> statement-breakpoint", ""));
+    }
+    const columns = database.prepare("pragma table_info(upload_sessions)").all();
+    assert.deepEqual(
+      columns.map((column) => column.name),
+      [
+        "id", "owner_id", "parent_id", "name", "name_key", "relative_path",
+        "object_key", "r2_upload_id", "mime_type", "size_bytes",
+        "part_size_bytes", "status", "created_at", "updated_at", "expires_at",
+      ],
+    );
+    const tableSql = database
+      .prepare("select sql from sqlite_master where type = 'table' and name = 'upload_sessions'")
+      .get().sql;
+    assert.match(tableSql, /status.+active.+completing.+completed.+aborted/is);
+    assert.match(tableSql, /size_bytes.+5368709120/is);
+    const partColumns = database.prepare("pragma table_info(upload_parts)").all();
+    assert.deepEqual(
+      partColumns.map((column) => column.name),
+      ["session_id", "part_number", "etag", "size_bytes", "uploaded_at"],
+    );
+    const foreignKeys = database.prepare("pragma foreign_key_list(upload_parts)").all();
+    assert.equal(foreignKeys[0]?.table, "upload_sessions");
+    assert.equal(String(foreignKeys[0]?.on_delete).toLocaleLowerCase(), "cascade");
+  } finally {
+    database.close();
+  }
 });

@@ -17,6 +17,7 @@ export async function GET(request: Request): Promise<Response> {
         query: url.searchParams.get("query") ?? "",
         sort: url.searchParams.get("sort"),
         direction: url.searchParams.get("direction"),
+        cursor: url.searchParams.get("cursor"),
       }),
       store.getStorageSummary(user.userId),
       store.getFolderOptions(user.userId),
@@ -24,7 +25,7 @@ export async function GET(request: Request): Promise<Response> {
 
     return Response.json({
       user: { displayName: user.displayName, email: user.email },
-      upload: { maxBytes: MAX_UPLOAD_BYTES, maxLabel: "25 MB" },
+      upload: { maxBytes: MAX_UPLOAD_BYTES, maxLabel: "5 GB" },
       storage,
       folders,
       ...listing,

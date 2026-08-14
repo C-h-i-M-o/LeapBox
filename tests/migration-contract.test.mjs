@@ -79,8 +79,13 @@ test("升级迁移创建受约束的 multipart 上传会话表", async () => {
         "id", "owner_id", "parent_id", "name", "name_key", "relative_path",
         "object_key", "r2_upload_id", "mime_type", "size_bytes",
         "part_size_bytes", "status", "created_at", "updated_at", "expires_at",
+        "item_id", "completed_at",
       ],
     );
+    const itemIdIndex = database
+      .prepare("select sql from sqlite_master where type = 'index' and name = 'idx_upload_sessions_item_id'")
+      .get();
+    assert.match(itemIdIndex?.sql ?? "", /create unique index.+item_id.+where.+item_id.+is not null/isu);
     const tableSql = database
       .prepare("select sql from sqlite_master where type = 'table' and name = 'upload_sessions'")
       .get().sql;

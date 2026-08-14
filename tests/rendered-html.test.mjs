@@ -43,7 +43,8 @@ test("已登录首屏直接呈现完整文件管理功能", async () => {
   assert.match(html, /收藏/);
   assert.match(html, /回收站/);
   assert.match(html, /新建文件夹/);
-  assert.match(html, /上传文件/);
+  assert.match(html, />↑ 上传<\/button>/);
+  assert.doesNotMatch(html, /上传文件|上传文件夹/);
   assert.match(html, /搜索文件/);
   assert.match(html, /跃匣主人/);
   assert.match(html, /跃匣 LeapBox/);
@@ -84,7 +85,7 @@ test("文件管理器包含移动端、文件夹上传、分片续传和对话�
   assert.match(css, /@media \(max-width: 760px\)/u);
   assert.match(css, /:focus-visible/u);
   assert.match(css, /prefers-reduced-motion/u);
-  assert.match(css, /\.mobile-upload-label/u);
+  assert.match(css, /\.unified-upload-button/u);
   assert.doesNotMatch(
     css,
     /\.top-actions \.primary-button \{[^}]*color:\s*transparent/isu,
@@ -105,7 +106,72 @@ test("文件管理器支持多选批处理、轻量分页和 GSAP 减少动态�
   assert.match(component, /\/api\/items\/batch/u);
   assert.match(component, /nextCursor/u);
   assert.match(component, /AbortController/u);
+  assert.match(component, /startUpload\(resumed\)\.then\(\(\)\s*=>\s*loadData/u);
   assert.match(component, /setTimeout\([^]*?250/u);
   assert.match(component, /useGSAP/u);
   assert.match(component, /gsap\.matchMedia/u);
+});
+
+test("统一上传对话框支持多文件与文件夹且使用产品状态文案", async () => {
+  const component = await readFile(
+    new URL("../app/components/FileManager.tsx", import.meta.url),
+    "utf8",
+  );
+  assert.match(component, /type:\s*"upload"/u);
+  assert.match(component, /选择文件/u);
+  assert.match(component, /选择文件夹/u);
+  assert.match(component, /type="file"\s+multiple/u);
+  assert.match(component, /webkitdirectory/u);
+  assert.doesNotMatch(component, /选择多个文件|分片上传中/u);
+  assert.doesNotMatch(component, /folder-upload-button|desktop-upload-label/u);
+  assert.match(component, /folderPickerSupported\s*&&/u);
+});
+
+test("上传路径记录匿名阶段耗时而不记录文件信息", async () => {
+  const [manager, client] = await Promise.all([
+    readFile(new URL("../app/components/FileManager.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/upload-client.ts", import.meta.url), "utf8"),
+  ]);
+  const source = `${manager}\n${client}`;
+  for (const phase of [
+    "selection_received",
+    "queue_visible",
+    "session_request_started",
+    "session_ready",
+    "first_part_dispatched",
+    "last_part_confirmed",
+    "finalize_completed",
+  ]) {
+    assert.match(source, new RegExp(phase, "u"));
+  }
+  assert.doesNotMatch(source, /performance\.mark\([^\n]*(?:file\.name|relativePath|parentId)/u);
+});
+
+test("表格操作列共享列定义且手机操作保持单行", async () => {
+  const [component, css] = await Promise.all([
+    readFile(new URL("../app/components/FileManager.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/file-manager.css", import.meta.url), "utf8"),
+  ]);
+  assert.match(component, /className="actions-heading"/u);
+  assert.match(css, /--file-columns:/u);
+  assert.match(css, /@media \(max-width:\s*1099px\)/u);
+  assert.match(css, /grid-template-columns:\s*var\(--file-columns\)/u);
+  assert.match(css, /\.actions-heading[^}]*justify-self:\s*end/isu);
+  assert.match(css, /@media \(max-width:\s*760px\)[^]*?\.row-actions\s*\{[^}]*display:\s*grid[^}]*grid-template-columns:/isu);
+  assert.doesNotMatch(css, /@media \(max-width:\s*760px\)[^]*?\.row-actions\s*\{[^}]*flex-wrap:\s*wrap/isu);
+  assert.doesNotMatch(css, /\.file-row\s*>\s*span\[role="cell"\]\s*\{\s*display:\s*none/isu);
+});
+
+test("明显 GSAP 动效使用时间线、回弹与 React 安全上下文", async () => {
+  const component = await readFile(
+    new URL("../app/components/FileManager.tsx", import.meta.url),
+    "utf8",
+  );
+  assert.match(component, /gsap\.timeline/u);
+  assert.match(component, /back\.out/u);
+  assert.match(component, /contextSafe/u);
+  assert.match(component, /data-animate-logo/u);
+  assert.match(component, /<Image[^>]*unoptimized/u);
+  assert.match(component, /data-upload-trigger/u);
+  assert.match(component, /prefers-reduced-motion:\s*reduce/u);
 });

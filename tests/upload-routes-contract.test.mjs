@@ -23,6 +23,8 @@ test("上传路由提供创建、查询、流式分片、完成和取消接口",
   assert.doesNotMatch(part, /arrayBuffer\(|formData\(/u);
   assert.match(part, /uploads\.uploadPart/u);
   assert.match(complete, /uploads\.completeSession/u);
+  assert.match(complete, /uploads\.completeSession\(user\.userId, id\)/u);
+  assert.doesNotMatch(complete, /readJsonRecord|body\.parts|UploadedPart/u);
   await assert.rejects(access(new URL("app/api/upload/route.ts", root)));
 });
 

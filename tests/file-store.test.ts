@@ -43,8 +43,10 @@ class MemoryStatement implements FileStatement {
 class MemoryDatabase implements FileDatabase {
   readonly sqlite = new DatabaseSync(":memory:");
   failNextItemInsert = false;
+  readonly preparedSql: string[] = [];
 
   prepare(sql: string): FileStatement {
+    this.preparedSql.push(sql);
     if (this.failNextItemInsert && /^\s*insert into items/iu.test(sql)) {
       this.failNextItemInsert = false;
       return {
@@ -231,6 +233,35 @@ test("文件夹树保留相对层级并复用已有目录", async () => {
       direction: "asc",
     });
     assert.deepEqual(projectItems.items.map((item) => item.name).sort(), ["文档", "素材"].sort());
+  } finally {
+    database.close();
+  }
+});
+
+test("文件夹树只按当前层级查询相关父目录与名称", async () => {
+  const { database, store } = await createStore();
+  try {
+    await store.createFolder("owner-a", "无关文件夹", null);
+    const start = database.preparedSql.length;
+    await store.createFolderTree("owner-a", null, [
+      "项目/素材",
+      "项目/文档/合同",
+    ]);
+
+    const treeQueries = database.preparedSql.slice(start)
+      .filter((sql) => /select[^]*from items/iu.test(sql));
+    assert.equal(
+      treeQueries.some((sql) =>
+        /where owner_id = \? and deleted_at is null\s*$/iu.test(sql.trim()),
+      ),
+      false,
+      "目录映射不能扫描用户的全部有效项目",
+    );
+    assert.equal(
+      treeQueries.some((sql) => /name_key/iu.test(sql)),
+      true,
+      "目录映射应按当前层级的名称精确查询",
+    );
   } finally {
     database.close();
   }

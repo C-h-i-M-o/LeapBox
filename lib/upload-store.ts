@@ -28,6 +28,7 @@ export interface MultipartObjectStore {
     options?: { httpMetadata?: { contentType?: string } },
   ): Promise<MultipartUpload>;
   resumeMultipartUpload(key: string, uploadId: string): MultipartUpload;
+  head(key: string): Promise<{ size: number } | null>;
   delete(key: string): Promise<void>;
 }
 
@@ -63,6 +64,8 @@ type UploadSessionRecord = PublicUploadSession & {
   createdAt: number;
   updatedAt: number;
   expiresAt: number;
+  itemId: string | null;
+  completedAt: number | null;
 };
 
 const SESSION_SELECT = `
@@ -81,6 +84,8 @@ const SESSION_SELECT = `
   created_at as createdAt,
   updated_at as updatedAt,
   expires_at as expiresAt
+  , item_id as itemId
+  , completed_at as completedAt
 `;
 
 const ITEM_SELECT = `
@@ -126,6 +131,7 @@ export class UploadStore {
     await this.#assertUploadTarget(ownerId, input.parentId, nameKey);
 
     const id = crypto.randomUUID();
+    const itemId = crypto.randomUUID();
     const objectKey = `objects/${crypto.randomUUID()}`;
     const multipart = await this.#objects.createMultipartUpload(objectKey, {
       httpMetadata: { contentType: mimeType },
@@ -137,8 +143,8 @@ export class UploadStore {
           insert into upload_sessions (
             id, owner_id, parent_id, name, name_key, relative_path, object_key,
             r2_upload_id, mime_type, size_bytes, part_size_bytes, status,
-            created_at, updated_at, expires_at
-          ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?)
+            created_at, updated_at, expires_at, item_id, completed_at
+          ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, null)
         `)
         .bind(
           id,
@@ -155,13 +161,24 @@ export class UploadStore {
           now,
           now,
           now + SESSION_TTL_MS,
+          itemId,
         )
         .run();
     } catch {
       await multipart.abort();
       throw new FileStoreError("上传会话创建失败，请重试", "UPLOAD_SESSION_FAILED", 500);
     }
-    return this.getSession(ownerId, id);
+    return {
+      id,
+      parentId: input.parentId,
+      name,
+      relativePath,
+      mimeType,
+      sizeBytes: input.sizeBytes,
+      partSizeBytes: UPLOAD_PART_BYTES,
+      status: "active",
+      parts: [],
+    };
   }
 
   async uploadPart(
@@ -184,21 +201,19 @@ export class UploadStore {
       throw new FileStoreError("存储服务返回了无效分片", "INVALID_PART_RESULT", 502);
     }
     const now = Date.now();
-    await this.#database
-      .prepare(`
+    await this.#database.batch([
+      this.#database.prepare(`
         insert into upload_parts (session_id, part_number, etag, size_bytes, uploaded_at)
         values (?, ?, ?, ?, ?)
         on conflict(session_id, part_number) do update set
           etag = excluded.etag,
           size_bytes = excluded.size_bytes,
           uploaded_at = excluded.uploaded_at
-      `)
-      .bind(session.id, partNumber, etag, sizeBytes, now)
-      .run();
-    await this.#database
-      .prepare("update upload_sessions set updated_at = ?, expires_at = ? where id = ? and owner_id = ? and status = 'active'")
-      .bind(now, now + SESSION_TTL_MS, session.id, ownerId)
-      .run();
+      `).bind(session.id, partNumber, etag, sizeBytes, now),
+      this.#database
+        .prepare("update upload_sessions set updated_at = ?, expires_at = ? where id = ? and owner_id = ? and status = 'active'")
+        .bind(now, now + SESSION_TTL_MS, session.id, ownerId),
+    ]);
     return { partNumber, etag };
   }
 
@@ -234,44 +249,74 @@ export class UploadStore {
   async completeSession(
     ownerId: string,
     sessionId: string,
-    parts: UploadedPart[],
   ): Promise<PublicItem> {
-    const session = await this.#requireSession(ownerId, sessionId);
-    this.#assertActive(session);
-    const completedParts = validateCompletedParts(session.sizeBytes, parts);
-    await this.#assertStoredParts(session.id, completedParts);
-    await this.#assertUploadTarget(ownerId, session.parentId, session.nameKey);
+    let session = await this.#requireSession(ownerId, sessionId);
+    if (session.status === "completed") return this.#requireCompletedItem(ownerId, session);
+    if (session.status === "aborted") {
+      throw new FileStoreError("上传会话已结束，无法继续", "UPLOAD_NOT_ACTIVE", 409);
+    }
+    const itemId = await this.#ensureItemId(ownerId, session);
+    if (session.itemId !== itemId) session = { ...session, itemId };
+    const completedParts = validateCompletedParts(
+      session.sizeBytes,
+      await this.#storedParts(session.id),
+    );
 
-    const locked = await this.#database
-      .prepare(`
-        update upload_sessions
-        set status = 'completing', updated_at = ?
-        where id = ? and owner_id = ? and status = 'active'
-        returning id
-      `)
-      .bind(Date.now(), session.id, ownerId)
-      .first<{ id: string }>();
-    if (!locked) {
-      throw new FileStoreError("上传会话正在完成或已结束", "UPLOAD_NOT_ACTIVE", 409);
+    if (session.status === "completing") {
+      const existing = await this.#findItem(ownerId, itemId);
+      if (existing) {
+        await this.#markCompleted(ownerId, session.id);
+        return mapPublicItem(existing);
+      }
+    } else {
+      await this.#assertUploadTarget(ownerId, session.parentId, session.nameKey);
+
+      const locked = await this.#database
+        .prepare(`
+          update upload_sessions
+          set status = 'completing', updated_at = ?
+          where id = ? and owner_id = ? and status = 'active'
+          returning id
+        `)
+        .bind(Date.now(), session.id, ownerId)
+        .first<{ id: string }>();
+      if (!locked) return this.completeSession(ownerId, sessionId);
     }
 
     const multipart = this.#objects.resumeMultipartUpload(
       session.objectKey,
       session.r2UploadId,
     );
-    await multipart.complete(completedParts);
-    const itemId = crypto.randomUUID();
+    if (!(await this.#objects.head(session.objectKey))) {
+      await multipart.complete(completedParts);
+    }
     const now = Date.now();
+    const itemRecord: ItemRecord = {
+      id: itemId,
+      ownerId,
+      type: "file",
+      parentId: session.parentId,
+      name: session.name,
+      nameKey: session.nameKey,
+      objectKey: session.objectKey,
+      mimeType: session.mimeType,
+      sizeBytes: session.sizeBytes,
+      isFavorite: 0,
+      createdAt: now,
+      updatedAt: now,
+      lastAccessedAt: now,
+      deletedAt: null,
+      originalParentId: null,
+    };
     try {
-      await this.#database
-        .prepare(`
+      await this.#database.batch([
+        this.#database.prepare(`
           insert into items (
             id, owner_id, type, parent_id, name, name_key, object_key, mime_type,
             size_bytes, is_favorite, created_at, updated_at, last_accessed_at,
             deleted_at, original_parent_id
           ) values (?, ?, 'file', ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, null, null)
-        `)
-        .bind(
+        `).bind(
           itemId,
           ownerId,
           session.parentId,
@@ -283,9 +328,23 @@ export class UploadStore {
           now,
           now,
           now,
-        )
-        .run();
+        ),
+        this.#database
+          .prepare(`
+            update upload_sessions
+            set status = 'completed', completed_at = ?, updated_at = ?
+            where id = ? and owner_id = ? and status = 'completing'
+          `)
+          .bind(now, now, session.id, ownerId),
+      ]);
     } catch (error) {
+      if (isTransientPlatformError(error)) {
+        throw new FileStoreError(
+          "文件保存暂时失败，请重试",
+          "UPLOAD_FINALIZE_RETRYABLE",
+          503,
+        );
+      }
       await this.#objects.delete(session.objectKey);
       await this.#database
         .prepare("update upload_sessions set status = 'aborted', updated_at = ? where id = ? and owner_id = ?")
@@ -297,18 +356,7 @@ export class UploadStore {
       throw new FileStoreError("上传记录保存失败，请重试", "UPLOAD_RECORD_FAILED", 500);
     }
 
-    await this.#database
-      .prepare("update upload_sessions set status = 'completed', updated_at = ? where id = ? and owner_id = ? and status = 'completing'")
-      .bind(Date.now(), session.id, ownerId)
-      .run();
-    const item = await this.#database
-      .prepare(`select ${ITEM_SELECT} from items where id = ? and owner_id = ? limit 1`)
-      .bind(itemId, ownerId)
-      .first<ItemRecord>();
-    if (!item) {
-      throw new FileStoreError("上传记录读取失败", "UPLOAD_RECORD_MISSING", 500);
-    }
-    return mapPublicItem(item);
+    return mapPublicItem(itemRecord);
   }
 
   async abortSession(ownerId: string, sessionId: string): Promise<void> {
@@ -357,43 +405,84 @@ export class UploadStore {
     parentId: string | null,
     nameKey: string,
   ): Promise<void> {
-    if (parentId !== null) {
-      const parent = await this.#database
-        .prepare("select id from items where id = ? and owner_id = ? and type = 'folder' and deleted_at is null limit 1")
-        .bind(parentId, ownerId)
-        .first<{ id: string }>();
-      if (!parent) {
-        throw new FileStoreError("目标文件夹不存在", "PARENT_NOT_FOUND", 404);
-      }
-    }
-    const conflict = await this.#database
+    const target = await this.#database
       .prepare(`
-        select id from items
-        where owner_id = ? and name_key = ? and deleted_at is null
-          and ${parentId === null ? "parent_id is null" : "parent_id = ?"}
-        limit 1
+        select
+          case when ? is null then 1 else exists(
+            select 1 from items
+            where id = ? and owner_id = ? and type = 'folder' and deleted_at is null
+          ) end as parentValid,
+          exists(
+            select 1 from items
+            where owner_id = ? and name_key = ? and deleted_at is null
+              and ((? is null and parent_id is null) or parent_id = ?)
+          ) as hasConflict
       `)
-      .bind(...(parentId === null ? [ownerId, nameKey] : [ownerId, nameKey, parentId]))
-      .first<{ id: string }>();
-    if (conflict) {
+      .bind(parentId, parentId, ownerId, ownerId, nameKey, parentId, parentId)
+      .first<{ parentValid: number; hasConflict: number }>();
+    if (!target?.parentValid) {
+      throw new FileStoreError("目标文件夹不存在", "PARENT_NOT_FOUND", 404);
+    }
+    if (target.hasConflict) {
       throw new FileStoreError("同一目录已存在同名项目", "NAME_CONFLICT", 409);
     }
   }
 
-  async #assertStoredParts(sessionId: string, parts: UploadedPart[]): Promise<void> {
+  async #storedParts(sessionId: string): Promise<UploadedPart[]> {
     const { results } = await this.#database
       .prepare("select part_number as partNumber, etag from upload_parts where session_id = ? order by part_number asc")
       .bind(sessionId)
       .all<UploadedPart>();
-    if (
-      results.length !== parts.length ||
-      results.some(
-        (part, index) =>
-          part.partNumber !== parts[index]?.partNumber || part.etag !== parts[index]?.etag,
-      )
-    ) {
-      throw new FileStoreError("上传分片状态不一致，请刷新后重试", "PARTS_MISMATCH", 409);
+    return results;
+  }
+
+  async #ensureItemId(ownerId: string, session: UploadSessionRecord): Promise<string> {
+    if (session.itemId) return session.itemId;
+    const itemId = crypto.randomUUID();
+    const allocated = await this.#database
+      .prepare(`
+        update upload_sessions set item_id = ?, updated_at = ?
+        where id = ? and owner_id = ? and item_id is null
+        returning item_id as itemId
+      `)
+      .bind(itemId, Date.now(), session.id, ownerId)
+      .first<{ itemId: string }>();
+    if (allocated?.itemId) return allocated.itemId;
+    const refreshed = await this.#requireSession(ownerId, session.id);
+    if (!refreshed.itemId) {
+      throw new FileStoreError("上传保存标识创建失败", "UPLOAD_ITEM_ID_FAILED", 500);
     }
+    return refreshed.itemId;
+  }
+
+  async #findItem(ownerId: string, itemId: string): Promise<ItemRecord | null> {
+    return this.#database
+      .prepare(`select ${ITEM_SELECT} from items where id = ? and owner_id = ? limit 1`)
+      .bind(itemId, ownerId)
+      .first<ItemRecord>();
+  }
+
+  async #requireCompletedItem(
+    ownerId: string,
+    session: UploadSessionRecord,
+  ): Promise<PublicItem> {
+    if (!session.itemId) {
+      throw new FileStoreError("上传记录读取失败", "UPLOAD_RECORD_MISSING", 500);
+    }
+    const item = await this.#findItem(ownerId, session.itemId);
+    if (!item) throw new FileStoreError("上传记录读取失败", "UPLOAD_RECORD_MISSING", 500);
+    return mapPublicItem(item);
+  }
+
+  async #markCompleted(ownerId: string, sessionId: string): Promise<void> {
+    const now = Date.now();
+    await this.#database
+      .prepare(`
+        update upload_sessions set status = 'completed', completed_at = ?, updated_at = ?
+        where id = ? and owner_id = ? and status = 'completing'
+      `)
+      .bind(now, now, sessionId, ownerId)
+      .run();
   }
 
   #normalizeRelativePath(relativePath: string | null, nameKey: string): string | null {
@@ -413,4 +502,9 @@ export class UploadStore {
 
 function isUniqueError(error: unknown): boolean {
   return error instanceof Error && /unique constraint|idx_items_active/iu.test(error.message);
+}
+
+function isTransientPlatformError(error: unknown): boolean {
+  if (error instanceof TypeError) return true;
+  return error instanceof Error && /D1_ERROR|temporar|timeout|timed out|busy|locked/iu.test(error.message);
 }

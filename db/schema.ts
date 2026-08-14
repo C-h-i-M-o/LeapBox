@@ -90,6 +90,8 @@ export const uploadSessions = sqliteTable(
     createdAt: integer("created_at").notNull(),
     updatedAt: integer("updated_at").notNull(),
     expiresAt: integer("expires_at").notNull(),
+    itemId: text("item_id"),
+    completedAt: integer("completed_at"),
   },
   (table) => [
     check(
@@ -110,6 +112,9 @@ export const uploadSessions = sqliteTable(
       table.updatedAt,
     ),
     index("idx_upload_sessions_expires_at").on(table.expiresAt),
+    uniqueIndex("idx_upload_sessions_item_id")
+      .on(table.itemId)
+      .where(sql`${table.itemId} is not null`),
   ],
 );
 

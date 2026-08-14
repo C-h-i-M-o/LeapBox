@@ -17,6 +17,7 @@ import {
 import type { BreadcrumbEntry, PublicItem } from "@/lib/files-core";
 import type { FileView, FolderOption, StorageSummary } from "@/lib/file-store";
 import {
+  AdaptiveUploadScheduler,
   MAX_ACTIVE_FILES,
   abortUploadSession,
   runWithConcurrency,
@@ -28,7 +29,7 @@ import "./file-manager.css";
 gsap.registerPlugin(useGSAP);
 
 type LayoutMode = "list" | "grid";
-type UploadState = "waiting" | "uploading" | "paused" | "success" | "error" | "cancelled";
+type UploadState = "waiting" | "preparing" | "uploading" | "saving" | "paused" | "success" | "error" | "cancelled";
 
 type SelectedFile = {
   file: File;
@@ -37,6 +38,7 @@ type SelectedFile = {
 
 type UploadTask = SelectedFile & {
   id: string;
+  performanceId: string;
   parentId: string | null;
   progress: number;
   speedBytesPerSecond: number;
@@ -63,6 +65,7 @@ type BootstrapResponse = ListingResponse & {
 
 type DialogState =
   | { type: "closed" }
+  | { type: "upload" }
   | { type: "new-folder" }
   | { type: "rename"; item: PublicItem }
   | { type: "move"; item: PublicItem }
@@ -146,17 +149,20 @@ export function FileManager({ displayName, email }: FileManagerProps) {
   const [uploadLimit, setUploadLimit] = useState(DEFAULT_LIMIT);
   const [uploadLimitLabel, setUploadLimitLabel] = useState("5 GB");
   const [uploads, setUploads] = useState<UploadTask[]>([]);
+  const [uploadScheduler] = useState(() => new AdaptiveUploadScheduler());
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [dragActive, setDragActive] = useState(false);
+  const [folderPickerSupported, setFolderPickerSupported] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [message, setMessage] = useState("");
   const [dialog, setDialog] = useState<DialogState>({ type: "closed" });
   const [dialogValue, setDialogValue] = useState("");
   const [moveParentId, setMoveParentId] = useState("");
   const [busy, setBusy] = useState(false);
+  const uploadAnimationKey = uploads.map((task) => `${task.id}:${task.state}`).join("|");
 
   const loadData = useCallback(async (signal?: AbortSignal, options: LoadOptions = {}) => {
     const sequence = requestSequenceRef.current + 1;
@@ -209,6 +215,7 @@ export function FileManager({ displayName, email }: FileManagerProps) {
       if (savedLayout === "grid" || savedLayout === "list") setLayout(savedLayout);
       const initialFolder = new URLSearchParams(window.location.search).get("folder");
       if (initialFolder) setParentId(initialFolder);
+      setFolderPickerSupported("webkitdirectory" in HTMLInputElement.prototype);
     }, 0);
     const handlePopState = () => {
       setParentId(new URLSearchParams(window.location.search).get("folder"));
@@ -262,18 +269,47 @@ export function FileManager({ displayName, email }: FileManagerProps) {
   useGSAP(() => {
     const media = gsap.matchMedia();
     media.add("(prefers-reduced-motion: no-preference)", () => {
+      const logo = shellRef.current?.querySelector<HTMLElement>("[data-animate-logo]");
+      if (logo && !logo.dataset.animated) {
+        logo.dataset.animated = "true";
+        gsap.timeline({ defaults: { ease: "back.out(1.8)" } })
+          .fromTo(
+            logo,
+            { autoAlpha: 0, y: 22, rotation: -12, scale: .76 },
+            { autoAlpha: 1, y: 0, rotation: 0, scale: 1, duration: .52 },
+          );
+      }
+      const activeNavigation = shellRef.current?.querySelector<HTMLElement>(".nav-active");
+      if (activeNavigation) {
+        gsap.fromTo(
+          activeNavigation,
+          { x: -18, scale: .96 },
+          { x: 0, scale: 1, duration: .42, ease: "back.out(1.7)", clearProps: "transform" },
+        );
+      }
       const targets = gsap.utils
         .toArray<HTMLElement>(".file-row:not(.table-header), .file-card", shellRef.current)
         .slice(0, 12);
       if (targets.length > 0) {
         gsap.from(targets, {
           autoAlpha: 0,
-          y: 8,
-          duration: 0.24,
-          stagger: 0.025,
-          ease: "power2.out",
+          x: -26,
+          y: 12,
+          rotation: -1.5,
+          scale: .97,
+          duration: .48,
+          stagger: .046,
+          ease: "back.out(1.45)",
           clearProps: "transform,opacity,visibility",
         });
+      }
+      const selected = shellRef.current?.querySelectorAll<HTMLElement>(".selected-item");
+      if (selected && selected.length > 0) {
+        gsap.fromTo(
+          selected,
+          { x: -7, scale: .97 },
+          { x: 0, scale: 1, duration: .32, ease: "back.out(1.9)", clearProps: "transform" },
+        );
       }
       const batchToolbar = shellRef.current?.querySelector<HTMLElement>(".batch-toolbar");
       if (batchToolbar) {
@@ -291,6 +327,48 @@ export function FileManager({ displayName, email }: FileManagerProps) {
           { autoAlpha: 1, y: 0, duration: 0.2, ease: "power2.out" },
         );
       }
+      const uploadDialog = shellRef.current?.querySelector<HTMLElement>("[data-upload-dialog]");
+      if (uploadDialog) {
+        const dialogIcon = uploadDialog.querySelector<HTMLElement>("[data-upload-file-icon]");
+        const timeline = gsap.timeline({ defaults: { ease: "back.out(1.65)" } });
+        timeline.fromTo(
+          uploadDialog,
+          { autoAlpha: 0, y: 48, scale: .92 },
+          { autoAlpha: 1, y: 0, scale: 1, duration: .46 },
+        );
+        if (dialogIcon) {
+          timeline.fromTo(
+            dialogIcon,
+            { y: -28, rotation: -8, scale: .72 },
+            { y: 0, rotation: 0, scale: 1, duration: .38 },
+            "-=.2",
+          );
+        }
+      }
+      const savingIcons = shellRef.current?.querySelectorAll<HTMLElement>(
+        '.upload-task[data-state="saving"] .upload-status',
+      );
+      if (savingIcons && savingIcons.length > 0) {
+        gsap.to(savingIcons, {
+          y: -6,
+          rotation: -5,
+          duration: .42,
+          delay: .3,
+          repeat: -1,
+          yoyo: true,
+          ease: "power2.inOut",
+        });
+      }
+      const successIcons = shellRef.current?.querySelectorAll<HTMLElement>(
+        '.upload-task[data-state="success"] .upload-status',
+      );
+      if (successIcons && successIcons.length > 0) {
+        gsap.fromTo(
+          successIcons,
+          { scale: .55, rotation: -10 },
+          { scale: 1, rotation: 0, duration: .44, ease: "back.out(2.2)", clearProps: "transform" },
+        );
+      }
     });
     media.add("(prefers-reduced-motion: reduce)", () => {
       const statePanels = shellRef.current?.querySelectorAll<HTMLElement>(
@@ -299,7 +377,42 @@ export function FileManager({ displayName, email }: FileManagerProps) {
       if (statePanels && statePanels.length > 0) gsap.set(statePanels, { autoAlpha: 1 });
     });
     return () => media.revert();
-  }, { scope: shellRef, dependencies: [items, message, selectedIds.size, uploads.length] });
+  }, {
+    scope: shellRef,
+    dependencies: [dialog.type, items, message, selectedIds.size, uploadAnimationKey, view],
+    revertOnUpdate: true,
+  });
+
+  const { contextSafe } = useGSAP({ scope: shellRef });
+
+  const openUploadDialog = contextSafe(() => {
+    setDialog({ type: "upload" });
+    const trigger = gsap.utils.toArray<HTMLElement>("[data-upload-trigger]")[0];
+    if (!trigger || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    gsap.timeline({ defaults: { ease: "back.out(1.9)" } })
+      .to(trigger, { y: -6, rotation: -2, scale: 1.04, duration: .16 })
+      .to(trigger, { y: 0, rotation: 1, scale: 1, duration: .22 })
+      .to(trigger, { rotation: 0, duration: .12 });
+  });
+
+  const animateItemsOut = contextSafe((ids: string[]): Promise<void> => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return Promise.resolve();
+    const targets = ids.flatMap((id) =>
+      gsap.utils.toArray<HTMLElement>(`[data-item-id="${CSS.escape(id)}"]`));
+    if (targets.length === 0) return Promise.resolve();
+    return new Promise((resolve) => {
+      gsap.to(targets, {
+        autoAlpha: 0,
+        x: 48,
+        y: -8,
+        scale: .94,
+        duration: .26,
+        stagger: .035,
+        ease: "power3.in",
+        onComplete: resolve,
+      });
+    });
+  });
 
   function selectView(nextView: FileView) {
     setView(nextView);
@@ -434,16 +547,19 @@ export function FileManager({ displayName, email }: FileManagerProps) {
           action: "move",
           parentId: moveParentId || null,
         });
+        await animateItemsOut([dialog.item.id]);
         setItems((current) => current.filter((item) => item.id !== dialog.item.id));
         setMessage("项目已移动");
       } else if (dialog.type === "trash") {
         await mutate("/api/items/" + encodeURIComponent(dialog.item.id) + "/trash", "POST", {
           ...(dialog.count > 0 ? { confirmedCount: dialog.count } : {}),
         });
+        await animateItemsOut([dialog.item.id]);
         setItems((current) => current.filter((item) => item.id !== dialog.item.id));
         setMessage("项目已移入回收站");
       } else if (dialog.type === "permanent") {
         await mutate("/api/items/" + encodeURIComponent(dialog.item.id), "DELETE");
+        await animateItemsOut([dialog.item.id]);
         setItems((current) => current.filter((item) => item.id !== dialog.item.id));
         setMessage("项目已永久删除");
       } else if (dialog.type === "batch-move") {
@@ -474,6 +590,7 @@ export function FileManager({ displayName, email }: FileManagerProps) {
         selectedIds.has(item.id) ? { ...item, isFavorite: body.favorite === true } : item,
       ));
     } else {
+      await animateItemsOut(ids);
       setItems((current) => current.filter((item) => !selectedIds.has(item.id)));
     }
     setSelectedIds(new Set());
@@ -510,6 +627,7 @@ export function FileManager({ displayName, email }: FileManagerProps) {
   async function restoreItem(item: PublicItem) {
     try {
       await mutate("/api/items/" + encodeURIComponent(item.id) + "/restore", "POST", {});
+      await animateItemsOut([item.id]);
       setItems((current) => current.filter((entry) => entry.id !== item.id));
       setMessage("项目已恢复");
     } catch (error) {
@@ -549,6 +667,8 @@ export function FileManager({ displayName, email }: FileManagerProps) {
   }
 
   async function uploadFiles(filesToUpload: SelectedFile[]) {
+    const batchId = crypto.randomUUID();
+    performance.mark(`leapbox:${batchId}:selection_received`);
     const accepted = filesToUpload.filter(({ file }) => {
       if (file.size <= 0) {
         setMessage("已忽略空文件“" + file.name + "”");
@@ -562,29 +682,15 @@ export function FileManager({ displayName, email }: FileManagerProps) {
     });
     if (accepted.length === 0) return;
 
-    let folderMapping: Record<string, string> = {};
-    const directoryPaths = [...new Set(accepted.flatMap(({ relativePath }) => {
-      if (!relativePath || !relativePath.includes("/")) return [];
-      return [relativePath.split("/").slice(0, -1).join("/")];
-    }))];
-    if (directoryPaths.length > 0) {
-      const response = await mutate<{ mapping: Record<string, string> }>(
-        "/api/folder-trees",
-        "POST",
-        { parentId, paths: directoryPaths },
-      );
-      folderMapping = response.mapping;
-    }
-
     const tasks = accepted.map<UploadTask>(({ file, relativePath }) => {
-      const directoryPath = relativePath?.includes("/")
-        ? relativePath.split("/").slice(0, -1).join("/")
-        : "";
+      const id = crypto.randomUUID();
+      performance.mark(`leapbox:${id}:selection_received`);
       return {
-        id: crypto.randomUUID(),
+        id,
+        performanceId: id,
         file,
         relativePath,
-        parentId: directoryPath ? folderMapping[directoryPath] ?? parentId : parentId,
+        parentId,
         progress: 0,
         speedBytesPerSecond: 0,
         remainingSeconds: null,
@@ -595,20 +701,79 @@ export function FileManager({ displayName, email }: FileManagerProps) {
       };
     });
     setUploads((current) => [...tasks, ...current].slice(0, 40));
-    await runWithConcurrency(tasks, MAX_ACTIVE_FILES, startUpload);
+    queueMicrotask(() => {
+      for (const task of tasks) {
+        performance.mark(`leapbox:${task.performanceId}:queue_visible`);
+        performance.measure(
+          "leapbox:selection_to_queue",
+          `leapbox:${task.performanceId}:selection_received`,
+          `leapbox:${task.performanceId}:queue_visible`,
+        );
+      }
+      performance.mark(`leapbox:${batchId}:queue_visible`);
+      performance.measure(
+        "leapbox:selection_to_queue",
+        `leapbox:${batchId}:selection_received`,
+        `leapbox:${batchId}:queue_visible`,
+      );
+    });
+
+    const directoryPaths = [...new Set(accepted.flatMap(({ relativePath }) => {
+      if (!relativePath || !relativePath.includes("/")) return [];
+      return [relativePath.split("/").slice(0, -1).join("/")];
+    }))];
+    const folderMappingRequest = directoryPaths.length > 0
+      ? mutate<{ mapping: Record<string, string> }>(
+          "/api/folder-trees",
+          "POST",
+          { parentId, paths: directoryPaths },
+        ).then((response) => response.mapping)
+      : Promise.resolve<Record<string, string>>({});
+    const orderedTasks = [
+      ...tasks.filter((task) => !task.relativePath?.includes("/")),
+      ...tasks.filter((task) => task.relativePath?.includes("/")),
+    ];
+    await runWithConcurrency(orderedTasks, MAX_ACTIVE_FILES, async (task) => {
+      const directoryPath = task.relativePath?.includes("/")
+        ? task.relativePath.split("/").slice(0, -1).join("/")
+        : "";
+      try {
+        const folderMapping = directoryPath ? await folderMappingRequest : {};
+        const resolved = {
+          ...task,
+          parentId: directoryPath ? folderMapping[directoryPath] ?? parentId : parentId,
+        };
+        updateUpload(task.id, { parentId: resolved.parentId });
+        await startUpload(resolved);
+      } catch (error) {
+        updateUpload(task.id, { state: "error", message: errorMessage(error) });
+      }
+    });
     await loadData(undefined, { bootstrap: true });
   }
 
   async function startUpload(task: UploadTask): Promise<void> {
-    updateUpload(task.id, { state: "uploading", message: "正在分片上传" });
+    updateUpload(task.id, { state: "preparing", message: "准备中" });
     try {
       await uploadFileInParts({
         file: task.file,
         parentId: task.parentId,
         relativePath: task.relativePath,
         signal: task.controller.signal,
+        scheduler: uploadScheduler,
+        performanceId: task.performanceId,
         onSession: (sessionId) => updateUpload(task.id, { sessionId }),
-        onProgress: (progress) => updateUploadProgress(task.id, progress),
+        onProgress: (progress) => {
+          updateUpload(task.id, { state: "uploading" });
+          updateUploadProgress(task.id, progress);
+        },
+        onSaving: () => updateUpload(task.id, {
+          state: "saving",
+          progress: 100,
+          speedBytesPerSecond: 0,
+          remainingSeconds: 0,
+          message: "正在保存",
+        }),
       });
       updateUpload(task.id, {
         state: "success",
@@ -634,7 +799,7 @@ export function FileManager({ displayName, email }: FileManagerProps) {
     const controller = new AbortController();
     const resumed = { ...task, controller, state: "waiting" as const };
     setUploads((current) => current.map((entry) => entry.id === task.id ? resumed : entry));
-    void startUpload(resumed);
+    void startUpload(resumed).then(() => loadData(undefined, { bootstrap: true }));
   }
 
   async function cancelUpload(task: UploadTask) {
@@ -649,9 +814,7 @@ export function FileManager({ displayName, email }: FileManagerProps) {
       progress: progress.progress,
       speedBytesPerSecond: progress.speedBytesPerSecond,
       remainingSeconds: progress.remainingSeconds,
-      message: progress.remainingSeconds === null
-        ? "正在上传"
-        : "预计剩余 " + formatDuration(progress.remainingSeconds),
+      message: "上传中",
     });
   }
 
@@ -685,7 +848,7 @@ export function FileManager({ displayName, email }: FileManagerProps) {
       <a className="skip-link" href="#file-area">跳到文件区域</a>
       <aside className={"sidebar " + (sidebarOpen ? "sidebar-open" : "")} aria-label="文件导航">
         <div className="brand">
-          <Image className="brand-mark" src="/leapbox-logo.png" alt="" width={42} height={42} priority />
+          <Image className="brand-mark" data-animate-logo src="/leapbox-logo.png" alt="" width={42} height={42} priority unoptimized />
           <div><strong>跃匣 <em>LeapBox</em></strong><span>PRIVATE FILES</span></div>
         </div>
         <nav>
@@ -732,10 +895,7 @@ export function FileManager({ displayName, email }: FileManagerProps) {
           </div>
           <div className="top-actions">
             <button type="button" className="secondary-button new-folder-button" onClick={() => { setDialogValue(""); setDialog({ type: "new-folder" }); }} disabled={view !== "files"}>＋ 新建文件夹</button>
-            <div className="upload-actions">
-              <button type="button" className="primary-button" onClick={chooseFiles} disabled={view !== "files"}>↑ <span className="desktop-upload-label">上传文件</span><span className="mobile-upload-label">上传</span></button>
-              <button type="button" className="secondary-button folder-upload-button" aria-label="上传文件夹" onClick={chooseFolder} disabled={view !== "files"}><span className="folder-upload-icon" aria-hidden="true">▣</span><span className="folder-upload-label">上传文件夹</span></button>
-            </div>
+            <button type="button" className="primary-button unified-upload-button" data-upload-trigger onClick={openUploadDialog} disabled={view !== "files"}>↑ 上传</button>
             <input ref={fileInputRef} className="visually-hidden" type="file" multiple onChange={handleFileSelection} />
             <input ref={folderInputRef} className="visually-hidden" type="file" multiple {...FOLDER_INPUT_ATTRIBUTES} onChange={handleFileSelection} />
           </div>
@@ -826,31 +986,33 @@ export function FileManager({ displayName, email }: FileManagerProps) {
         </section>
       )}
 
-      {uploads.length > 0 && (
+      {uploads.length > 0 && dialog.type !== "upload" && (
         <section className="upload-panel" aria-label="上传中心" data-animate-panel>
-          <header><strong>上传中心</strong><span>{uploads.filter((task) => task.state === "uploading").length} 个进行中</span><button type="button" aria-label="清除已完成任务" onClick={() => setUploads((current) => current.filter((task) => task.state === "uploading" || task.state === "waiting" || task.state === "paused"))}>×</button></header>
-          {uploads.slice(0, 6).map((task) => (
-            <div className="upload-task" key={task.id}>
-              <span className={"upload-status " + task.state} aria-hidden="true">{task.state === "success" ? "✓" : task.state === "error" ? "!" : task.state === "paused" ? "Ⅱ" : "↑"}</span>
-              <div>
-                <strong>{task.relativePath || task.file.name}</strong>
-                <small>{formatBytes(task.file.size)} · {task.message}{task.speedBytesPerSecond > 0 ? " · " + formatBytes(task.speedBytesPerSecond) + "/s" : ""}</small>
-                <span className="progress"><i style={{ transform: "scaleX(" + task.progress / 100 + ")" }} /></span>
-              </div>
-              <div className="upload-task-actions">
-                <b>{task.progress}%</b>
-                {task.state === "uploading" && <button type="button" onClick={() => pauseUpload(task)}>暂停</button>}
-                {(task.state === "paused" || task.state === "error") && <button type="button" onClick={() => resumeUpload(task)}>继续</button>}
-                {(task.state === "uploading" || task.state === "paused" || task.state === "error") && <button type="button" className="danger-link" onClick={() => void cancelUpload(task)}>取消</button>}
-              </div>
-            </div>
-          ))}
+          <header><strong>上传中心</strong><span>{uploads.filter((task) => task.state === "preparing" || task.state === "uploading" || task.state === "saving").length} 个进行中</span><button type="button" aria-label="清除已完成任务" onClick={() => setUploads((current) => current.filter((task) => task.state === "preparing" || task.state === "uploading" || task.state === "saving" || task.state === "waiting" || task.state === "paused"))}>×</button></header>
+          <UploadTaskList tasks={uploads} onPause={pauseUpload} onResume={resumeUpload} onCancel={cancelUpload} />
         </section>
       )}
 
       <div className="toast" aria-live="polite" aria-atomic="true">{message && <span data-animate-panel>{message}<button type="button" aria-label="关闭提示" onClick={() => setMessage("")}>×</button></span>}</div>
 
-      {dialog.type !== "closed" && (
+      {dialog.type === "upload" && (
+        <UploadDialog
+          dragActive={dragActive}
+          tasks={uploads}
+          uploadLimitLabel={uploadLimitLabel}
+          folderPickerSupported={folderPickerSupported}
+          onChooseFiles={chooseFiles}
+          onChooseFolder={chooseFolder}
+          onDragActiveChange={setDragActive}
+          onDrop={handleDrop}
+          onPause={pauseUpload}
+          onResume={resumeUpload}
+          onCancel={cancelUpload}
+          onClose={() => setDialog({ type: "closed" })}
+        />
+      )}
+
+      {dialog.type !== "closed" && dialog.type !== "upload" && (
         <FileDialog
           dialog={dialog}
           value={dialogValue}
@@ -864,6 +1026,97 @@ export function FileManager({ displayName, email }: FileManagerProps) {
         />
       )}
     </main>
+  );
+}
+
+type UploadTaskListProps = {
+  tasks: UploadTask[];
+  onPause(task: UploadTask): void;
+  onResume(task: UploadTask): void;
+  onCancel(task: UploadTask): Promise<void>;
+};
+
+function UploadTaskList(props: UploadTaskListProps) {
+  return props.tasks.slice(0, 8).map((task) => (
+    <div className="upload-task" data-state={task.state} key={task.id}>
+      <span className={"upload-status " + task.state} aria-hidden="true">
+        {task.state === "success" ? "✓" : task.state === "error" ? "!" : task.state === "paused" ? "Ⅱ" : task.state === "saving" ? "↥" : "↑"}
+      </span>
+      <div>
+        <strong>{task.relativePath || task.file.name}</strong>
+        <small>
+          {formatBytes(task.file.size)} · {task.message}
+          {task.state === "uploading" && task.speedBytesPerSecond > 0
+            ? " · " + formatBytes(task.speedBytesPerSecond) + "/s"
+            : ""}
+        </small>
+        <span className="progress" aria-label={task.state === "saving" ? "文件已传输，正在保存" : `上传进度 ${task.progress}%`}>
+          <i style={{ transform: "scaleX(" + task.progress / 100 + ")" }} />
+        </span>
+      </div>
+      <div className="upload-task-actions">
+        <b>{task.progress}%</b>
+        {task.state === "uploading" && <button type="button" onClick={() => props.onPause(task)}>暂停</button>}
+        {(task.state === "paused" || task.state === "error") && <button type="button" onClick={() => props.onResume(task)}>继续</button>}
+        {(task.state === "preparing" || task.state === "uploading" || task.state === "paused" || task.state === "error") && (
+          <button type="button" className="danger-link" onClick={() => void props.onCancel(task)}>取消</button>
+        )}
+      </div>
+    </div>
+  ));
+}
+
+type UploadDialogProps = UploadTaskListProps & {
+  dragActive: boolean;
+  folderPickerSupported: boolean;
+  uploadLimitLabel: string;
+  onChooseFiles(): void;
+  onChooseFolder(): void;
+  onDragActiveChange(active: boolean): void;
+  onDrop(event: DragEvent<HTMLDivElement>): Promise<void>;
+  onClose(): void;
+};
+
+function UploadDialog(props: UploadDialogProps) {
+  return (
+    <dialog open className="modal upload-modal" aria-labelledby="upload-dialog-title">
+      <section className="modal-card upload-dialog" data-upload-dialog>
+        <header>
+          <div>
+            <span className="upload-dialog-icon" aria-hidden="true">↥</span>
+            <span><strong id="upload-dialog-title">上传到当前文件夹</strong><small>支持单文件最高 {props.uploadLimitLabel}</small></span>
+          </div>
+          <button type="button" aria-label="关闭上传对话框" onClick={props.onClose}>×</button>
+        </header>
+        <div
+          className={"upload-drop-area " + (props.dragActive ? "drop-active" : "")}
+          onDragEnter={(event) => { event.preventDefault(); props.onDragActiveChange(true); }}
+          onDragOver={(event) => event.preventDefault()}
+          onDragLeave={(event) => {
+            if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+              props.onDragActiveChange(false);
+            }
+          }}
+          onDrop={(event) => void props.onDrop(event)}
+        >
+          <span className="upload-file-visual" data-upload-file-icon aria-hidden="true"><i>FILE</i><b /></span>
+          <strong>拖放文件或文件夹到这里</strong>
+          <p>系统会自动识别内容类型，并保留文件夹层级</p>
+          <div className="upload-picker-actions">
+            <button type="button" className="primary-button" onClick={props.onChooseFiles}>选择文件</button>
+            {props.folderPickerSupported && (
+              <button type="button" className="secondary-button" onClick={props.onChooseFolder}>选择文件夹</button>
+            )}
+          </div>
+        </div>
+        {props.tasks.length > 0 && (
+          <div className="upload-dialog-queue" aria-live="polite">
+            <header><strong>上传队列</strong><span>{props.tasks.filter((task) => task.state === "preparing" || task.state === "uploading" || task.state === "saving").length} 个进行中</span></header>
+            <UploadTaskList {...props} />
+          </div>
+        )}
+      </section>
+    </dialog>
   );
 }
 
@@ -887,10 +1140,10 @@ function FileList(props: ItemActions) {
     <div className="file-table" role="table" aria-label="文件列表">
       <div className="file-row table-header" role="row">
         <span role="columnheader"><input type="checkbox" aria-label="选择当前页全部项目" checked={props.items.length > 0 && props.selectedIds.size === props.items.length} onChange={props.onSelectAll} /></span>
-        <span role="columnheader">名称</span><span role="columnheader">类型</span><span role="columnheader">大小</span><span role="columnheader">更新时间</span><span role="columnheader">操作</span>
+        <span role="columnheader">名称</span><span role="columnheader">类型</span><span role="columnheader">大小</span><span role="columnheader">更新时间</span><span className="actions-heading" role="columnheader">操作</span>
       </div>
       {props.items.map((item, index) => (
-        <div className={"file-row " + (props.selectedIds.has(item.id) ? "selected-item" : "")} role="row" key={item.id}>
+        <div className={"file-row " + (props.selectedIds.has(item.id) ? "selected-item" : "")} data-item-id={item.id} role="row" key={item.id}>
           <span className="selection-cell" role="cell"><input type="checkbox" aria-label={"选择 " + item.name} checked={props.selectedIds.has(item.id)} onClick={(event: MouseEvent<HTMLInputElement>) => props.onSelect(item, index, event.shiftKey)} onChange={() => undefined} /></span>
           <div className="file-name" role="cell"><FileIcon item={item} /><span><button type="button" onClick={() => props.onOpen(item)}>{item.name}</button>{item.location && <small>{item.location}</small>}</span></div>
           <span role="cell">{typeLabel(item)}</span>
@@ -907,7 +1160,7 @@ function FileGrid(props: ItemActions) {
   return (
     <div className="file-grid" aria-label="文件网格">
       {props.items.map((item, index) => (
-        <article className={"file-card " + (props.selectedIds.has(item.id) ? "selected-item" : "")} key={item.id}>
+        <article className={"file-card " + (props.selectedIds.has(item.id) ? "selected-item" : "")} data-item-id={item.id} key={item.id}>
           <header>
             <input type="checkbox" aria-label={"选择 " + item.name} checked={props.selectedIds.has(item.id)} onClick={(event: MouseEvent<HTMLInputElement>) => props.onSelect(item, index, event.shiftKey)} onChange={() => undefined} />
             <FileIcon item={item} large />
@@ -945,7 +1198,7 @@ function FileIcon({ item, large = false }: { item: PublicItem; large?: boolean }
 }
 
 type FileDialogProps = {
-  dialog: Exclude<DialogState, { type: "closed" }>;
+  dialog: Exclude<DialogState, { type: "closed" } | { type: "upload" }>;
   value: string;
   moveParentId: string;
   folders: FolderOption[];
@@ -1077,14 +1330,6 @@ function formatBytes(bytes: number): string {
   return (value >= 10 ? value.toFixed(0) : value.toFixed(1)) + " " + units[index];
 }
 
-function formatDuration(seconds: number): string {
-  if (!Number.isFinite(seconds) || seconds < 1) return "不到 1 秒";
-  if (seconds < 60) return Math.ceil(seconds) + " 秒";
-  const minutes = Math.ceil(seconds / 60);
-  if (minutes < 60) return minutes + " 分钟";
-  return Math.ceil(minutes / 60) + " 小时";
-}
-
 function formatDate(timestamp: number): string {
   return new Intl.DateTimeFormat("zh-CN", {
     month: "2-digit",
@@ -1126,7 +1371,7 @@ function emptyDescription(view: FileView): string {
   return "拖放文件或完整文件夹到这里，支持单文件最高 5 GB。";
 }
 
-type ActionDialog = Exclude<DialogState, { type: "closed" | "preview" | "details" }>;
+type ActionDialog = Exclude<DialogState, { type: "closed" | "upload" | "preview" | "details" }>;
 
 function dialogTitle(dialog: ActionDialog): string {
   if (dialog.type === "new-folder") return "新建文件夹";

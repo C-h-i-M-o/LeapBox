@@ -341,28 +341,71 @@ export class FileStore {
       throw new FileStoreError("文件夹路径数量必须在 1 到 500 之间", "INVALID_FOLDER_TREE", 400);
     }
     const normalizedPaths = [...new Set(directoryPaths.map(normalizeDirectoryPath))]
-      .sort((left, right) => pathDepth(left) - pathDepth(right) || left.localeCompare(right, "zh-CN"));
-    const { results: activeItems } = await this.#database
-      .prepare(`select ${ITEM_SELECT} from items where owner_id = ? and deleted_at is null`)
-      .bind(ownerId)
-      .all<ItemRecord>();
-    const byParentAndName = new Map(
-      activeItems.map((item) => [siblingKey(item.parentId, item.nameKey), item]),
+      .sort((left, right) => left.localeCompare(right, "zh-CN"));
+    const pathSegments = normalizedPaths.map((path) =>
+      path.split("/").map((segment) => normalizeItemName(segment)),
     );
+    const byParentAndName = new Map<string, ItemRecord>();
     const mapping: Record<string, string> = {};
     const planned: Array<{ id: string; parentId: string | null; name: string; nameKey: string }> = [];
 
-    for (const path of normalizedPaths) {
-      let currentParent = parentId;
-      let currentPath = "";
-      for (const rawSegment of path.split("/")) {
-        const { name, nameKey } = normalizeItemName(rawSegment);
-        currentPath = currentPath ? `${currentPath}/${name}` : name;
-        const existing = byParentAndName.get(siblingKey(currentParent, nameKey));
+    const maxDepth = Math.max(...pathSegments.map((segments) => segments.length));
+    for (let depth = 0; depth < maxDepth; depth += 1) {
+      const candidates = new Map<string, {
+        parentId: string | null;
+        name: string;
+        nameKey: string;
+        path: string;
+      }>();
+      for (const segments of pathSegments) {
+        const segment = segments[depth];
+        if (!segment) continue;
+        const path = segments.slice(0, depth + 1).map((entry) => entry.name).join("/");
+        const parentPath = segments.slice(0, depth).map((entry) => entry.name).join("/");
+        const currentParent = depth === 0 ? parentId : mapping[parentPath];
+        if (depth > 0 && !currentParent) {
+          throw new FileStoreError("文件夹层级创建失败", "FOLDER_TREE_FAILED", 500);
+        }
+        const key = siblingKey(currentParent ?? null, segment.nameKey);
+        candidates.set(key, {
+          parentId: currentParent ?? null,
+          name: segment.name,
+          nameKey: segment.nameKey,
+          path,
+        });
+      }
+
+      const unresolved = [...candidates.entries()]
+        .filter(([key]) => !byParentAndName.has(key));
+      for (let offset = 0; offset < unresolved.length; offset += 300) {
+        const chunk = unresolved.slice(offset, offset + 300);
+        const clauses = chunk.map(([, candidate]) =>
+          candidate.parentId === null
+            ? "(parent_id is null and name_key = ?)"
+            : "(parent_id = ? and name_key = ?)",
+        );
+        const bindings = chunk.flatMap(([, candidate]) =>
+          candidate.parentId === null
+            ? [candidate.nameKey]
+            : [candidate.parentId, candidate.nameKey],
+        );
+        const { results } = await this.#database
+          .prepare(`
+            select ${ITEM_SELECT} from items
+            where owner_id = ? and deleted_at is null and (${clauses.join(" or ")})
+          `)
+          .bind(ownerId, ...bindings)
+          .all<ItemRecord>();
+        for (const item of results) {
+          byParentAndName.set(siblingKey(item.parentId, item.nameKey), item);
+        }
+      }
+
+      for (const [key, candidate] of candidates) {
+        const existing = byParentAndName.get(key);
         if (existing) {
           if (existing.type !== "folder") throw this.#conflictError();
-          currentParent = existing.id;
-          mapping[currentPath] = existing.id;
+          mapping[candidate.path] = existing.id;
           continue;
         }
         const id = crypto.randomUUID();
@@ -370,9 +413,9 @@ export class FileStore {
           id,
           ownerId,
           type: "folder",
-          parentId: currentParent,
-          name,
-          nameKey,
+          parentId: candidate.parentId,
+          name: candidate.name,
+          nameKey: candidate.nameKey,
           objectKey: null,
           mimeType: null,
           sizeBytes: 0,
@@ -383,10 +426,9 @@ export class FileStore {
           deletedAt: null,
           originalParentId: null,
         };
-        byParentAndName.set(siblingKey(currentParent, nameKey), folder);
-        planned.push({ id, parentId: currentParent, name, nameKey });
-        currentParent = id;
-        mapping[currentPath] = id;
+        byParentAndName.set(key, folder);
+        planned.push({ id, ...candidate });
+        mapping[candidate.path] = id;
       }
     }
 
@@ -939,10 +981,6 @@ function normalizeDirectoryPath(value: string): string {
   } catch {
     throw new FileStoreError("文件夹相对路径不正确", "INVALID_FOLDER_PATH", 400);
   }
-}
-
-function pathDepth(value: string): number {
-  return value.split("/").length;
 }
 
 function siblingKey(parentId: string | null, nameKey: string): string {

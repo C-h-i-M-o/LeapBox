@@ -59,6 +59,7 @@ export type UploadResumeStore = {
 
 type SessionResponse = { session: ClientUploadSession };
 type PartResponse = { part: ClientUploadPart };
+export type UploadRequest = <T = unknown>(url: string, init?: RequestInit) => Promise<T>;
 
 export type PreparedUploadInput = {
   file: Blob;
@@ -180,10 +181,7 @@ export async function uploadFileInParts(input: UploadFileInput): Promise<void> {
 
   const complete = async (): Promise<void> => {
     try {
-      await requestJson(`/api/uploads/${encodeURIComponent(session.id)}/complete`, {
-        method: "POST",
-        signal: input.signal,
-      });
+      await completeUploadSessionWithRecovery(session.id, input.signal);
     } catch (error) {
       if (input.signal.aborted) throw error;
       const detail = error instanceof Error ? error.message : "请稍后重试";
@@ -244,6 +242,56 @@ export function uploadResumeAction(
   if (session.status === "completing") return "complete";
   if (session.status === "active") return "upload";
   return "create";
+}
+
+export async function completeUploadSessionWithRecovery(
+  sessionId: string,
+  signal: AbortSignal,
+  request: UploadRequest = requestJson,
+  timeoutMilliseconds = 30_000,
+): Promise<void> {
+  try {
+    await requestUploadCompletion(sessionId, signal, request, timeoutMilliseconds);
+    return;
+  } catch (error) {
+    if (signal.aborted || !isRecoverableFinalizeError(error)) throw error;
+  }
+
+  const data = await request<SessionResponse>(
+    `/api/uploads/${encodeURIComponent(sessionId)}`,
+    { signal },
+  );
+  if (data.session.status === "completed") return;
+  if (data.session.status === "aborted") {
+    throw new Error("保存会话已终止，无法恢复");
+  }
+  await requestUploadCompletion(sessionId, signal, request, timeoutMilliseconds);
+}
+
+async function requestUploadCompletion(
+  sessionId: string,
+  signal: AbortSignal,
+  request: UploadRequest,
+  timeoutMilliseconds: number,
+): Promise<void> {
+  const timeoutController = new AbortController();
+  const timer = setTimeout(() => {
+    timeoutController.abort(new DOMException("保存请求超时", "TimeoutError"));
+  }, timeoutMilliseconds);
+  try {
+    await request(`/api/uploads/${encodeURIComponent(sessionId)}/complete`, {
+      method: "POST",
+      signal: AbortSignal.any([signal, timeoutController.signal]),
+    });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function isRecoverableFinalizeError(error: unknown): boolean {
+  return error instanceof TypeError ||
+    (error instanceof DOMException && error.name === "TimeoutError") ||
+    (error instanceof UploadHttpError && (error.status === 429 || error.status >= 500));
 }
 
 export async function abortUploadSession(sessionId: string): Promise<void> {
@@ -351,8 +399,9 @@ async function uploadPartWithRetry(
       return data.part;
     } catch (error) {
       lastError = error;
-      if (!isRetriableUploadError(error) || attempt >= MAX_PART_ATTEMPTS) break;
+      if (!isRetriableUploadError(error)) break;
       scheduler.noteRetry();
+      if (attempt >= MAX_PART_ATTEMPTS) break;
       await delay(400 * 2 ** (attempt - 1), signal);
     }
   }

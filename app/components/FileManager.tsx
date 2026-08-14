@@ -40,6 +40,9 @@ type UploadTask = SelectedFile & {
   id: string;
   performanceId: string;
   parentId: string | null;
+  rootParentId: string | null;
+  directoryPath: string;
+  directoryMapped: boolean;
   progress: number;
   speedBytesPerSecond: number;
   remainingSeconds: number | null;
@@ -395,6 +398,17 @@ export function FileManager({ displayName, email }: FileManagerProps) {
       .to(trigger, { rotation: 0, duration: .12 });
   });
 
+  const animateLogoHover = contextSafe(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const logo = gsap.utils.toArray<HTMLElement>("[data-animate-logo]")[0];
+    if (!logo) return;
+    gsap.fromTo(
+      logo,
+      { y: 0, rotation: 0, scale: 1 },
+      { y: -5, rotation: 5, scale: 1.06, duration: .22, yoyo: true, repeat: 1, ease: "power2.out", clearProps: "transform" },
+    );
+  });
+
   const animateItemsOut = contextSafe((ids: string[]): Promise<void> => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return Promise.resolve();
     const targets = ids.flatMap((id) =>
@@ -684,6 +698,9 @@ export function FileManager({ displayName, email }: FileManagerProps) {
 
     const tasks = accepted.map<UploadTask>(({ file, relativePath }) => {
       const id = crypto.randomUUID();
+      const directoryPath = relativePath?.includes("/")
+        ? relativePath.split("/").slice(0, -1).join("/")
+        : "";
       performance.mark(`leapbox:${id}:selection_received`);
       return {
         id,
@@ -691,6 +708,9 @@ export function FileManager({ displayName, email }: FileManagerProps) {
         file,
         relativePath,
         parentId,
+        rootParentId: parentId,
+        directoryPath,
+        directoryMapped: directoryPath.length === 0,
         progress: 0,
         speedBytesPerSecond: 0,
         remainingSeconds: null,
@@ -718,10 +738,7 @@ export function FileManager({ displayName, email }: FileManagerProps) {
       );
     });
 
-    const directoryPaths = [...new Set(accepted.flatMap(({ relativePath }) => {
-      if (!relativePath || !relativePath.includes("/")) return [];
-      return [relativePath.split("/").slice(0, -1).join("/")];
-    }))];
+    const directoryPaths = [...new Set(tasks.map((task) => task.directoryPath).filter(Boolean))];
     const folderMappingRequest = directoryPaths.length > 0
       ? mutate<{ mapping: Record<string, string> }>(
           "/api/folder-trees",
@@ -730,20 +747,20 @@ export function FileManager({ displayName, email }: FileManagerProps) {
         ).then((response) => response.mapping)
       : Promise.resolve<Record<string, string>>({});
     const orderedTasks = [
-      ...tasks.filter((task) => !task.relativePath?.includes("/")),
-      ...tasks.filter((task) => task.relativePath?.includes("/")),
+      ...tasks.filter((task) => !task.directoryPath),
+      ...tasks.filter((task) => task.directoryPath),
     ];
     await runWithConcurrency(orderedTasks, MAX_ACTIVE_FILES, async (task) => {
-      const directoryPath = task.relativePath?.includes("/")
-        ? task.relativePath.split("/").slice(0, -1).join("/")
-        : "";
       try {
-        const folderMapping = directoryPath ? await folderMappingRequest : {};
+        const folderMapping = task.directoryPath ? await folderMappingRequest : {};
+        const mappedParent = task.directoryPath ? folderMapping[task.directoryPath] : task.parentId;
+        if (task.directoryPath && !mappedParent) throw new Error("文件夹层级创建失败，请重试");
         const resolved = {
           ...task,
-          parentId: directoryPath ? folderMapping[directoryPath] ?? parentId : parentId,
+          parentId: mappedParent ?? null,
+          directoryMapped: true,
         };
-        updateUpload(task.id, { parentId: resolved.parentId });
+        updateUpload(task.id, { parentId: resolved.parentId, directoryMapped: true });
         await startUpload(resolved);
       } catch (error) {
         updateUpload(task.id, { state: "error", message: errorMessage(error) });
@@ -799,7 +816,24 @@ export function FileManager({ displayName, email }: FileManagerProps) {
     const controller = new AbortController();
     const resumed = { ...task, controller, state: "waiting" as const };
     setUploads((current) => current.map((entry) => entry.id === task.id ? resumed : entry));
-    void startUpload(resumed).then(() => loadData(undefined, { bootstrap: true }));
+    void (async () => {
+      let ready = resumed;
+      if (!ready.directoryMapped && ready.directoryPath) {
+        const response = await mutate<{ mapping: Record<string, string> }>(
+          "/api/folder-trees",
+          "POST",
+          { parentId: ready.rootParentId, paths: [ready.directoryPath] },
+        );
+        const mappedParent = response.mapping[ready.directoryPath];
+        if (!mappedParent) throw new Error("文件夹层级创建失败，请重试");
+        ready = { ...ready, parentId: mappedParent, directoryMapped: true };
+        updateUpload(ready.id, { parentId: mappedParent, directoryMapped: true });
+      }
+      await startUpload(ready);
+      await loadData(undefined, { bootstrap: true });
+    })().catch((error: unknown) => {
+      updateUpload(task.id, { state: "error", message: errorMessage(error) });
+    });
   }
 
   async function cancelUpload(task: UploadTask) {
@@ -847,7 +881,7 @@ export function FileManager({ displayName, email }: FileManagerProps) {
     <main className="drive-shell" ref={shellRef}>
       <a className="skip-link" href="#file-area">跳到文件区域</a>
       <aside className={"sidebar " + (sidebarOpen ? "sidebar-open" : "")} aria-label="文件导航">
-        <div className="brand">
+        <div className="brand" onPointerEnter={animateLogoHover}>
           <Image className="brand-mark" data-animate-logo src="/leapbox-logo.png" alt="" width={42} height={42} priority unoptimized />
           <div><strong>跃匣 <em>LeapBox</em></strong><span>PRIVATE FILES</span></div>
         </div>
@@ -951,7 +985,7 @@ export function FileManager({ displayName, email }: FileManagerProps) {
                 <div className="empty-box" aria-hidden="true"><span /></div>
                 <h2>{emptyTitle(view)}</h2>
                 <p>{emptyDescription(view)}</p>
-                {view === "files" && <div className="empty-actions"><button type="button" className="primary-button" onClick={chooseFiles}>上传文件</button><button type="button" className="secondary-button" onClick={chooseFolder}>上传文件夹</button></div>}
+                {view === "files" && <div className="empty-actions"><button type="button" className="primary-button" onClick={openUploadDialog}>上传</button></div>}
               </div>
             ) : layout === "list" ? (
               <FileList {...itemActions} />

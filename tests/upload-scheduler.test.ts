@@ -109,6 +109,12 @@ test("已确认字节可以达到 100% 并把剩余时间归零", () => {
   assert.equal(completed.remainingSeconds, 0);
 });
 
+test("最后一个字节确认前进度不得提前显示 100%", () => {
+  const tracker = uploadClient.createUploadProgressTracker(1_000, 0);
+  assert.equal(tracker.confirm(999, performance.now() + 1_000).progress, 99);
+  assert.equal(tracker.confirm(1, performance.now() + 2_000).progress, 100);
+});
+
 test("最后一个分片确认后先报告 100% 再进入保存阶段", async () => {
   const uploadPreparedSession = uploadClient.uploadPreparedSession;
   assert.equal(typeof uploadPreparedSession, "function", "应导出 uploadPreparedSession");

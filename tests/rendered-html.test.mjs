@@ -106,7 +106,7 @@ test("文件管理器支持多选批处理、轻量分页和 GSAP 减少动态�
   assert.match(component, /\/api\/items\/batch/u);
   assert.match(component, /nextCursor/u);
   assert.match(component, /AbortController/u);
-  assert.match(component, /startUpload\(resumed\)\.then\(\(\)\s*=>\s*loadData/u);
+  assert.match(component, /await startUpload\(ready\);\s*await loadData/u);
   assert.match(component, /setTimeout\([^]*?250/u);
   assert.match(component, /useGSAP/u);
   assert.match(component, /gsap\.matchMedia/u);
@@ -125,6 +125,9 @@ test("统一上传对话框支持多文件与文件夹且使用产品状态文�
   assert.doesNotMatch(component, /选择多个文件|分片上传中/u);
   assert.doesNotMatch(component, /folder-upload-button|desktop-upload-label/u);
   assert.match(component, /folderPickerSupported\s*&&/u);
+  assert.match(component, /directoryMapped/u);
+  assert.match(component, /rootParentId/u);
+  assert.doesNotMatch(component, /onClick=\{chooseFiles\}>上传文件|onClick=\{chooseFolder\}>上传文件夹/u);
 });
 
 test("上传路径记录匿名阶段耗时而不记录文件信息", async () => {
@@ -171,6 +174,7 @@ test("明显 GSAP 动效使用时间线、回弹与 React 安全上下文", asyn
   assert.match(component, /back\.out/u);
   assert.match(component, /contextSafe/u);
   assert.match(component, /data-animate-logo/u);
+  assert.match(component, /animateLogoHover/u);
   assert.match(component, /<Image[^>]*unoptimized/u);
   assert.match(component, /data-upload-trigger/u);
   assert.match(component, /prefers-reduced-motion:\s*reduce/u);

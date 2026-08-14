@@ -152,7 +152,9 @@ export function createUploadProgressTracker(
       const speedBytesPerSecond = measuredBytes > 0 ? measuredBytes / elapsedSeconds : 0;
       const remainingBytes = Math.max(0, totalBytes - uploadedBytes);
       return {
-        progress: totalBytes > 0 ? Math.round((uploadedBytes / totalBytes) * 100) : 0,
+        progress: totalBytes > 0
+          ? uploadedBytes >= totalBytes ? 100 : Math.floor((uploadedBytes / totalBytes) * 100)
+          : 0,
         uploadedBytes,
         speedBytesPerSecond: remainingBytes === 0 ? 0 : Math.max(0, speedBytesPerSecond),
         remainingSeconds: remainingBytes === 0

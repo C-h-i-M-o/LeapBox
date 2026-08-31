@@ -4,3 +4,20 @@ html { color-scheme: light; }
 html, body { min-height: 100%; margin: 0; }
 body { background: #f6f4ec; }
 ::selection { color: #fff; background: #087e78; }
+
+.public-placeholder {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 24px;
+  box-sizing: border-box;
+  color: #183a45;
+  font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+}
+
+.public-placeholder p {
+  margin: 0;
+  font-size: clamp(18px, 2.4vw, 28px);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}

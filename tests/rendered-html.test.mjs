@@ -2,9 +2,12 @@ import assert from "node:assert/strict";
 import { access, readFile } from "node:fs/promises";
 import test from "node:test";
 
-async function render(authenticated = true) {
+async function render(pathname = "/", authenticated = true) {
   const workerUrl = new URL("../dist/server/index.js", import.meta.url);
-  workerUrl.searchParams.set("test", `${process.pid}-${Date.now()}-${authenticated}`);
+  workerUrl.searchParams.set(
+    "test",
+    `${process.pid}-${Date.now()}-${pathname}-${authenticated}`,
+  );
   const { default: worker } = await import(workerUrl.href);
   const headers = new Headers({ accept: "text/html" });
   if (authenticated) {
@@ -20,20 +23,45 @@ async function render(authenticated = true) {
     );
   }
   return worker.fetch(
-    new Request("http://localhost/", { headers, redirect: "manual" }),
+    new Request(new URL(pathname, "http://localhost"), {
+      headers,
+      redirect: "manual",
+    }),
     { ASSETS: { fetch: async () => new Response("Not found", { status: 404 }) } },
     { waitUntil() {}, passThroughOnException() {} },
   );
 }
 
-test("未登录访问会进入 Sites 的 ChatGPT 登录流程", async () => {
-  const response = await render(false);
-  assert.ok(response.status >= 300 && response.status < 400);
-  assert.match(response.headers.get("location") ?? "", /^\/signin-with-chatgpt\?/u);
+test("根路由保持空白且不触发登录", async () => {
+  const response = await render("/", false);
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("location"), null);
+  const html = await response.text();
+  assert.match(html, /<title>liuyilun\.com\.cn<\/title>/iu);
+  assert.doesNotMatch(html, /跃匣 LeapBox|个人展示页建设中|我的文件/u);
 });
 
-test("已登录首屏直接呈现完整文件管理功能", async () => {
-  const response = await render(true);
+test("公开 resume 路由允许匿名访问占位页", async () => {
+  const response = await render("/resume", false);
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("location"), null);
+  const html = await response.text();
+  assert.match(html, /<title>个人展示页 · liuyilun\.com\.cn<\/title>/iu);
+  assert.match(html, /个人展示页建设中/u);
+  assert.doesNotMatch(html, /owner@example\.com|跃匣主人/u);
+});
+
+test("未登录访问 LeapBox 会进入 Sites 的 ChatGPT 登录流程", async () => {
+  const response = await render("/leapbox", false);
+  assert.ok(response.status >= 300 && response.status < 400);
+  assert.equal(
+    response.headers.get("location"),
+    "/signin-with-chatgpt?return_to=%2Fleapbox",
+  );
+});
+
+test("已登录访问 LeapBox 直接呈现完整文件管理功能", async () => {
+  const response = await render("/leapbox", true);
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/iu);
   const html = await response.text();

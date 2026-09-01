@@ -41,14 +41,98 @@ test("根路由保持空白且不触发登录", async () => {
   assert.doesNotMatch(html, /跃匣 LeapBox|个人展示页建设中|我的文件/u);
 });
 
-test("公开 resume 路由允许匿名访问占位页", async () => {
+test("公开 resume 路由匿名呈现 AI 开发者作品集", async () => {
   const response = await render("/resume", false);
   assert.equal(response.status, 200);
   assert.equal(response.headers.get("location"), null);
   const html = await response.text();
-  assert.match(html, /<title>个人展示页 · liuyilun\.com\.cn<\/title>/iu);
-  assert.match(html, /个人展示页建设中/u);
+  assert.match(html, /<title>刘逸伦 · AI 开发者<\/title>/iu);
+  assert.match(html, /AI 开发者/u);
+  assert.match(html, /EvalSpark/u);
+  assert.match(html, /切换为英文|Switch to English/u);
+  assert.match(html, /liuyilun0603@163\.com/u);
+  assert.match(html, /github\.com\/C-h-i-M-o/u);
   assert.doesNotMatch(html, /owner@example\.com|跃匣主人/u);
+  assert.doesNotMatch(html, /15235577669/u);
+  assert.doesNotMatch(html, /个人展示页建设中/u);
+});
+
+test("resume 页面保持双语数据、UI 与 GSAP 行为分层", async () => {
+  const [page, portfolio, sections, localeHook, motionHook, css] = await Promise.all([
+    readFile(new URL("../app/(public)/resume/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/(public)/resume/resume-portfolio.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/(public)/resume/resume-sections.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/(public)/resume/use-resume-locale.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/(public)/resume/use-resume-motion.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/(public)/resume/resume.css", import.meta.url), "utf8"),
+  ]);
+  assert.match(page, /ResumePortfolio/u);
+  assert.match(portfolio, /useResumeLocale/u);
+  assert.match(portfolio, /useResumeMotion/u);
+  for (const id of ["about", "work", "strengths", "contact"]) {
+    assert.match(sections, new RegExp(`id=["']${id}["']`, "u"));
+  }
+  assert.match(localeHook, /localStorage/u);
+  assert.match(motionHook, /useGSAP/u);
+  assert.match(motionHook, /gsap\.timeline/u);
+  assert.match(motionHook, /ScrollTrigger/u);
+  assert.match(motionHook, /scrub:/u);
+  assert.doesNotMatch(`${motionHook}\n${css}`, /prefers-reduced-motion/u);
+  assert.match(css, /--resume-max-width:\s*1700px/u);
+  assert.doesNotMatch(sections, /resume-hero-cta/u);
+  assert.doesNotMatch(motionHook, /const heroTimeline/u);
+  assert.match(
+    css,
+    /\.resume-hero h1 > span\s*\{[^}]*overflow:\s*visible;/su,
+    "首屏标题的动画元素不能裁切自身文字",
+  );
+});
+
+test("resume 页面使用滚动叙事、奖项圆环与粘性项目结构", async () => {
+  const [sections, portfolio, motionHook, css] = await Promise.all([
+    readFile(new URL("../app/(public)/resume/resume-sections.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/(public)/resume/resume-portfolio.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/(public)/resume/use-resume-motion.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/(public)/resume/resume.css", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(sections, /resume-brand-mark">YL</u);
+  assert.match(sections, /function AwardsSection/u);
+  assert.match(portfolio, /<AwardsSection/u);
+  for (const attribute of [
+    "data-about-stage",
+    "data-tech-track",
+    "data-awards-ring",
+    "data-award-item",
+    "data-project-card",
+    "data-strengths-stage",
+    "data-strength-item",
+    "data-strength-glow",
+  ]) {
+    assert.match(sections, new RegExp(attribute, "u"));
+  }
+  assert.match(sections, /id="awards"/u);
+  assert.doesNotMatch(sections, /resume-stats|content\.hero\.availability/u);
+
+  assert.match(motionHook, /getAwardRingRotation/u);
+  assert.doesNotMatch(motionHook, /getScrollInfluencedTimeScale|\.timeScale\(|getVelocity\(/u);
+  assert.match(motionHook, /pin:\s*true/u);
+  assert.match(motionHook, /repeat:\s*-1/u);
+  assert.match(motionHook, /pointerenter/u);
+  assert.match(motionHook, /focusin/u);
+
+  assert.match(css, /\.resume-project-card\s*\{[^}]*position:\s*sticky/isu);
+  assert.match(css, /\.resume-awards-ring\s*\{[^}]*transform-style:\s*preserve-3d/isu);
+  assert.match(css, /@keyframes\s+resume-tech-forward/u);
+  assert.match(css, /@keyframes\s+resume-tech-reverse/u);
+  assert.match(css, /scrollbar-width:\s*none/u);
+  assert.match(css, /\.resume-strength-glow/u);
+
+  const aboutStageStart = sections.indexOf('data-about-stage');
+  const techMarquee = sections.indexOf('className="resume-tech-marquee"');
+  const aboutSectionEnd = sections.indexOf('</section>', techMarquee);
+  assert.ok(aboutStageStart >= 0 && techMarquee > aboutStageStart);
+  assert.ok(aboutSectionEnd > techMarquee);
 });
 
 test("未登录访问 LeapBox 会进入 Sites 的 ChatGPT 登录流程", async () => {
@@ -88,6 +172,11 @@ test("成品移除一次性预览骨架与依赖", async () => {
   assert.doesNotMatch(page, /_sites-preview|codex-preview|SkeletonPreview/iu);
   assert.doesNotMatch(layout, /Starter Project|next\/font\/google/iu);
   assert.doesNotMatch(packageJson, /react-loading-skeleton/iu);
+  assert.doesNotMatch(
+    packageJson,
+    /"(?:dev|build|start)":\s*"WRANGLER_LOG_PATH=/u,
+    "npm 脚本需能直接在 Windows 中运行",
+  );
   await assert.rejects(access(new URL("../app/_sites-preview", import.meta.url)));
   await assert.doesNotReject(access(new URL("../app/components/FileManager.tsx", import.meta.url)));
   await assert.doesNotReject(access(new URL("../app/components/file-manager.css", import.meta.url)));

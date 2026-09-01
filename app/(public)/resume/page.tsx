@@ -1,15 +1,14 @@
 import type { Metadata } from "next";
 
+import { ResumePortfolio } from "./resume-portfolio";
+import "./resume.css";
+
 export const metadata: Metadata = {
-  title: "个人展示页 · liuyilun.com.cn",
-  description: "个人展示页面建设中。",
+  title: "刘逸伦 · AI 开发者",
+  description: "刘逸伦的 AI 开发者作品集：模型评测、RAG、Agent、全栈工程与企业级 AI 工作流。",
   robots: { index: true, follow: true },
 };
 
 export default function ResumePage() {
-  return (
-    <main className="public-placeholder">
-      <p>个人展示页建设中</p>
-    </main>
-  );
+  return <ResumePortfolio />;
 }

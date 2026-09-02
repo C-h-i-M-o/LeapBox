@@ -123,15 +123,12 @@ body:has(.resume-page)::-webkit-scrollbar {
 }
 
 .resume-brand-mark {
-  display: grid;
-  width: 34px;
-  height: 34px;
-  place-items: center;
-  border: 1px solid var(--resume-line-strong);
-  color: var(--resume-mint);
-  font-family: var(--resume-serif);
-  font-size: 13px;
-  letter-spacing: 0;
+  display: block;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  object-fit: contain;
 }
 
 .resume-nav-links {
@@ -238,13 +235,16 @@ body:has(.resume-page)::-webkit-scrollbar {
 .resume-hero-media {
   z-index: -2;
   background: #060808 url("/resume/hero-poster.jpg") center / cover no-repeat;
-  will-change: transform;
 }
 
 .resume-hero-media video {
   object-fit: cover;
   filter: saturate(0.52) contrast(1.18) brightness(0.57);
+  opacity: 0;
+  transition: opacity 900ms ease;
 }
+
+.resume-hero-media video[data-ready] { opacity: 1; }
 
 .resume-hero-shade {
   background:
@@ -303,7 +303,6 @@ body:has(.resume-page)::-webkit-scrollbar {
 
 .resume-hero h1,
 .resume-about-heading h2,
-.resume-awards-heading h2,
 .resume-section-heading h2,
 .resume-strengths-heading h2,
 .resume-contact h2 {
@@ -317,21 +316,22 @@ body:has(.resume-page)::-webkit-scrollbar {
   align-self: end;
   max-width: 1450px;
   padding: clamp(38px, 6vh, 76px) 0 clamp(32px, 4.5vh, 56px);
-  font-size: clamp(64px, 7.9vw, 148px);
-  line-height: 0.86;
-  letter-spacing: -0.06em;
+  font-family: var(--resume-serif);
+  font-weight: 400;
+  font-size: clamp(50px, 7.3vw, 136px);
+  line-height: 1.2;
+  letter-spacing: -0.025em;
 }
 
 .resume-hero h1 > span {
   display: block;
   overflow: visible;
-  will-change: transform;
 }
 
-.resume-hero h1 > span:last-child {
-  padding-left: 8.2vw;
-  color: rgb(238 234 222 / 74%);
-  font-style: italic;
+.resume-hero h1 > span:last-of-type {
+  padding-left: 3vw;
+  color: var(--resume-mint);
+  font-style: normal;
 }
 
 .resume-hero-bottom {
@@ -342,7 +342,6 @@ body:has(.resume-page)::-webkit-scrollbar {
 
 .resume-hero-bottom > p,
 .resume-section-heading > p,
-.resume-awards-heading > p,
 .resume-strengths-heading > p,
 .resume-contact-bottom > p {
   margin: 0;
@@ -371,13 +370,13 @@ body:has(.resume-page)::-webkit-scrollbar {
   font-weight: 720;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  transition: transform 180ms ease, background 180ms ease;
+  transition: background 180ms ease, box-shadow 240ms ease;
 }
 
 .resume-primary-link:hover,
 .resume-primary-link:focus-visible {
   background: #b5f4dd;
-  transform: translateY(-3px);
+  box-shadow: 0 0 38px rgb(131 232 196 / 24%);
 }
 
 .resume-text-link {
@@ -395,7 +394,7 @@ body:has(.resume-page)::-webkit-scrollbar {
 
 .resume-hero-meta {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
   align-items: center;
   padding-top: 20px;
   color: rgb(238 234 222 / 70%);
@@ -434,6 +433,7 @@ body:has(.resume-page)::-webkit-scrollbar {
 
 .resume-about-main {
   display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   min-height: 0;
   padding-top: clamp(108px, 11vh, 128px);
   padding-bottom: clamp(30px, 4vh, 46px);
@@ -543,7 +543,7 @@ body:has(.resume-page)::-webkit-scrollbar {
 
 .resume-about-panels {
   position: relative;
-  min-height: min(58vh, 620px);
+  min-height: 0;
 }
 
 .resume-about-panel {
@@ -554,6 +554,8 @@ body:has(.resume-page)::-webkit-scrollbar {
   justify-content: center;
   will-change: transform, opacity;
 }
+
+.resume-about-panel:not(:first-child) { opacity: 0; visibility: hidden; }
 
 .resume-about-introduction {
   max-width: 830px;
@@ -696,144 +698,10 @@ body:has(.resume-page)::-webkit-scrollbar {
   to { transform: translateX(0); }
 }
 
-.resume-awards {
-  position: relative;
-  border-bottom: 1px solid var(--resume-line);
-  background:
-    radial-gradient(circle at 72% 50%, rgb(131 232 196 / 8%), transparent 31%),
-    linear-gradient(180deg, #0b0e0d, #080a0a);
-}
-
-.resume-awards-stage {
-  display: grid;
-  grid-template-columns: minmax(320px, 0.72fr) minmax(0, 1.28fr);
-  gap: clamp(60px, 8vw, 150px);
-  align-items: center;
-  min-height: 100svh;
-  padding-top: clamp(118px, 13vh, 150px);
-  padding-bottom: clamp(48px, 7vh, 78px);
-  overflow: hidden;
-}
-
-.resume-awards-heading h2 {
-  margin-top: 38px;
-  font-size: clamp(48px, 5.1vw, 92px);
-  line-height: 0.95;
-  letter-spacing: -0.05em;
-}
-
-.resume-awards-heading h2 span,
 .resume-section-heading h2 span,
 .resume-strengths-heading h2 span,
 .resume-contact h2 span {
   display: block;
-}
-
-.resume-awards-heading > p:last-child {
-  max-width: 470px;
-  margin-top: 36px;
-}
-
-.resume-awards-viewport {
-  position: relative;
-  height: min(74vh, 700px);
-  min-height: 560px;
-  overflow: hidden;
-  perspective: 1100px;
-  mask-image: linear-gradient(180deg, transparent, #000 14%, #000 86%, transparent);
-  will-change: transform, opacity;
-}
-
-.resume-awards-viewport::before {
-  position: absolute;
-  z-index: 3;
-  top: 50%;
-  right: 7%;
-  left: 7%;
-  height: 1px;
-  content: "";
-  background: linear-gradient(90deg, transparent, rgb(131 232 196 / 40%), transparent);
-  box-shadow: 0 0 36px rgb(131 232 196 / 20%);
-}
-
-.resume-awards-axis {
-  position: absolute;
-  z-index: 4;
-  top: calc(50% - 25px);
-  right: 1%;
-  color: var(--resume-mint);
-}
-
-.resume-awards-axis svg {
-  width: 50px;
-  height: 50px;
-}
-
-.resume-awards-ring {
-  position: absolute;
-  top: 50%;
-  right: 0;
-  left: 0;
-  height: 0;
-  transform-style: preserve-3d;
-  will-change: transform;
-}
-
-.resume-award-item {
-  position: absolute;
-  top: -58px;
-  left: 50%;
-  display: grid;
-  grid-template-columns: 92px minmax(0, 1fr) auto;
-  gap: 24px;
-  align-items: center;
-  width: min(90%, 650px);
-  min-height: 116px;
-  margin-left: max(-45%, -325px);
-  padding: 24px 28px;
-  border: 1px solid rgb(238 234 222 / 22%);
-  color: var(--resume-ivory);
-  background: rgb(10 13 12 / 92%);
-  box-shadow: 0 22px 70px rgb(0 0 0 / 38%);
-  font: inherit;
-  text-align: left;
-  cursor: default;
-  backface-visibility: hidden;
-  transform-style: preserve-3d;
-  transition: border-color 180ms ease, background 180ms ease, box-shadow 180ms ease;
-}
-
-.resume-award-item:hover,
-.resume-award-item:focus-visible,
-.resume-award-item:focus-within {
-  border-color: var(--resume-mint);
-  background: #111714;
-  box-shadow: 0 24px 82px rgb(0 0 0 / 58%), 0 0 34px rgb(131 232 196 / 8%);
-}
-
-.resume-award-period {
-  color: var(--resume-mint);
-  font-size: 10px;
-  font-weight: 680;
-  letter-spacing: 0.13em;
-}
-
-.resume-award-title {
-  margin: 0;
-  font-family: var(--resume-serif);
-  font-size: clamp(18px, 1.55vw, 27px);
-  font-weight: 400;
-  line-height: 1.16;
-}
-
-.resume-award-distinction {
-  margin: 0;
-  padding: 6px 9px;
-  border: 1px solid var(--resume-line);
-  color: var(--resume-muted);
-  font-size: 9px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
 }
 
 .resume-projects {
@@ -903,20 +771,6 @@ body:has(.resume-page)::-webkit-scrollbar {
   height: 100%;
   object-fit: cover;
   will-change: transform;
-}
-
-.resume-project-image > span {
-  position: absolute;
-  z-index: 1;
-  top: 24px;
-  left: 24px;
-  padding: 7px 10px;
-  border: 1px solid rgb(238 234 222 / 22%);
-  color: rgb(238 234 222 / 76%);
-  background: rgb(8 10 10 / 55%);
-  font-size: 10px;
-  letter-spacing: 0.14em;
-  backdrop-filter: blur(8px);
 }
 
 .resume-project-copy {
@@ -1046,7 +900,7 @@ body:has(.resume-page)::-webkit-scrollbar {
   letter-spacing: -0.05em;
 }
 
-.resume-strengths-heading > p:last-child {
+.resume-strengths-heading > p:not(.resume-section-label) {
   max-width: 470px;
   margin-top: 36px;
 }
@@ -1243,7 +1097,6 @@ body:has(.resume-page)::-webkit-scrollbar {
     grid-template-columns: minmax(0, 1.08fr) minmax(350px, 0.92fr);
   }
 
-  .resume-awards-stage,
   .resume-strengths-stage {
     gap: 62px;
   }
@@ -1258,7 +1111,6 @@ body:has(.resume-page)::-webkit-scrollbar {
     display: none;
   }
 
-  .resume-awards-stage,
   .resume-strengths-stage {
     display: block;
     min-height: auto;
@@ -1331,52 +1183,6 @@ body:has(.resume-page)::-webkit-scrollbar {
     margin-top: 44px;
   }
 
-  .resume-awards-stage {
-    display: grid;
-    grid-template-columns: 1fr;
-  }
-
-  .resume-awards-viewport {
-    height: auto;
-    min-height: 0;
-    overflow: visible;
-    perspective: none;
-    mask-image: none;
-    opacity: 1 !important;
-    transform: none !important;
-  }
-
-  .resume-awards-viewport::before,
-  .resume-awards-axis {
-    display: none;
-  }
-
-  .resume-awards-ring {
-    position: relative;
-    top: auto;
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 14px;
-    height: auto;
-    transform: none !important;
-  }
-
-  .resume-award-item {
-    position: relative;
-    top: auto;
-    left: auto;
-    grid-template-columns: 78px 1fr;
-    width: auto;
-    min-height: 130px;
-    margin: 0;
-    transform: none !important;
-  }
-
-  .resume-award-distinction {
-    grid-column: 2;
-    justify-self: start;
-  }
-
   .resume-project-card,
   .resume-project-card:nth-child(2),
   .resume-project-card:nth-child(3) {
@@ -1440,7 +1246,7 @@ body:has(.resume-page)::-webkit-scrollbar {
     font-size: clamp(48px, 14.8vw, 82px);
   }
 
-  .resume-hero h1 > span:last-child,
+  .resume-hero h1 > span:last-of-type,
   .resume-contact h2 span:last-child {
     padding-left: 0;
   }
@@ -1455,7 +1261,6 @@ body:has(.resume-page)::-webkit-scrollbar {
     flex-direction: column;
   }
 
-  .resume-awards-stage,
   .resume-strengths-stage {
     padding-top: 116px;
     padding-bottom: 86px;
@@ -1466,7 +1271,6 @@ body:has(.resume-page)::-webkit-scrollbar {
     padding-bottom: 86px;
   }
 
-  .resume-awards-heading h2,
   .resume-strengths-heading h2 {
     margin-top: 28px;
     font-size: clamp(42px, 12vw, 66px);
@@ -1497,15 +1301,6 @@ body:has(.resume-page)::-webkit-scrollbar {
 
   .resume-tech-track span {
     font-size: 28px;
-  }
-
-  .resume-awards-ring {
-    grid-template-columns: 1fr;
-  }
-
-  .resume-award-item {
-    grid-template-columns: 70px 1fr;
-    padding: 20px;
   }
 
   .resume-projects {
@@ -1557,3 +1352,163 @@ body:has(.resume-page)::-webkit-scrollbar {
     gap: 10px;
   }
 }
+
+/* 首帧直接显示散开的粒子，真实标题仅保留语义和字形测量。 */
+.resume-particle-line { position: relative; white-space: nowrap; }
+.resume-particle-title canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms ease;
+  filter: drop-shadow(0 0 4px rgb(131 232 196 / 16%));
+}
+/* 脚本未启动时由 CSS 独立兜底；正常首帧仍只显示分散粒子。 */
+.resume-particle-fallback { opacity: 0; animation: resume-title-fallback 1ms step-end 8s forwards; }
+@keyframes resume-title-fallback { to { opacity: 1; } }
+@keyframes resume-seed-timeout { to { opacity: 0; } }
+.resume-particle-seed {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  fill: currentColor;
+  opacity: 0.7;
+  animation: resume-seed-timeout 1ms step-end 8s forwards;
+  pointer-events: none;
+  transition: opacity 180ms ease;
+}
+.resume-particle-title[data-particle-ready] canvas { opacity: 1; }
+.resume-particle-title[data-particle-failed] canvas { opacity: 0; }
+.resume-particle-title[data-particle-ready] .resume-particle-fallback { animation: none; opacity: 0; }
+.resume-particle-title[data-particle-ready] .resume-particle-seed,
+.resume-particle-title[data-particle-failed] .resume-particle-seed { animation: none; opacity: 0; }
+.resume-particle-title[data-particle-failed] .resume-particle-fallback { animation: none; opacity: 1; }
+.resume-page[lang="en"] .resume-hero h1 { font-size: clamp(42px, 5.7vw, 105px); }
+.resume-page[lang="en"] .resume-hero h1 > span:last-of-type { font-style: italic; }
+.resume-page[lang="en"] .resume-about-introduction { font-size: clamp(22px, 2vw, 34px); }
+.resume-page[data-locale-switching] .resume-language-button { cursor: progress; }
+.resume-language-button { position: relative; gap: 0; padding: 4px; border: 1px solid var(--resume-line); border-radius: 30px; }
+.resume-language-button span { position: relative; z-index: 1; min-width: 34px; padding: 4px; text-align: center; transition: color 240ms ease, opacity 240ms ease; }
+.resume-language-button i { display: none; }
+.resume-language-button::before { position: absolute; top: 4px; left: 4px; width: 34px; height: calc(100% - 8px); border-radius: 24px; background: rgb(131 232 196 / 14%); content: ""; transition: transform 380ms cubic-bezier(.22,1,.36,1); }
+.resume-language-button[aria-pressed="true"]::before { transform: translateX(34px); }
+.resume-nav-links a { position: relative; padding: 8px 0; }
+.resume-nav-links a::after { position: absolute; bottom: 0; left: 0; width: 100%; height: 1px; background: var(--resume-mint); content: ""; transform: scaleX(0); transform-origin: left; transition: transform 300ms ease; }
+.resume-nav-links a:hover::after,
+.resume-nav-links a[aria-current]::after { transform: scaleX(1); }
+.resume-nav-links a[aria-current] { color: var(--resume-mint); }
+.resume-reading-progress { position: fixed; z-index: 80; top: 0; left: 0; width: 100%; height: 2px; pointer-events: none; }
+.resume-reading-progress span { display: block; width: 100%; height: 100%; background: var(--resume-mint); box-shadow: 0 0 16px var(--resume-mint); transform: scaleX(0); transform-origin: left; }
+.resume-pointer-light { position: fixed; z-index: 8; top: 0; left: 0; width: 600px; height: 600px; margin: -300px; border-radius: 50%; background: radial-gradient(circle, rgb(131 232 196 / 7%), transparent 64%); opacity: 0; mix-blend-mode: screen; pointer-events: none; transition: opacity 400ms ease; }
+.resume-page[data-pointer-active] .resume-pointer-light { opacity: 1; }
+.resume-interaction-hint { display: flex; align-items: center; gap: 10px; color: var(--resume-muted); font-size: 10px; font-weight: 450; letter-spacing: .06em; line-height: 1.6; }
+.resume-interaction-hint i { width: 6px; height: 6px; border-radius: 50%; background: var(--resume-mint); box-shadow: 0 0 14px var(--resume-mint); }
+.resume-hero-signal { animation: resume-signal-orbit 24s linear infinite; }
+@keyframes resume-signal-orbit { to { transform: rotate(360deg); } }
+
+/* 控件与固定舞台处于不同层级，主动操作只改变现有滚动进度。 */
+.resume-chapter-switch { display: flex; gap: 10px; margin-bottom: 24px; }
+.resume-chapter-switch button { position: relative; display: flex; align-items: center; gap: 14px; min-height: 42px; padding: 9px 20px; border: 1px solid var(--resume-line); color: var(--resume-muted); background: transparent; cursor: pointer; font-size: 11px; overflow: hidden; transition: color 240ms ease, border-color 240ms ease, background 240ms ease; }
+.resume-chapter-switch button > span { font-size: 9px; color: var(--resume-mint); }
+.resume-chapter-switch button i { position: absolute; left: 0; bottom: 0; width: 100%; height: 2px; background: var(--resume-mint); transform: scaleX(0); transform-origin: left; transition: transform 400ms ease; }
+.resume-chapter-switch button[aria-pressed="true"] { color: var(--resume-ivory); background: rgb(131 232 196 / 7%); border-color: rgb(131 232 196 / 38%); }
+.resume-chapter-switch button[aria-pressed="true"] i,
+.resume-chapter-switch button:hover i { transform: scaleX(1); }
+.resume-about-layout,
+.resume-project-card { perspective: 1100px; }
+.resume-portrait { transform-origin: center; }
+.resume-portrait::after { background: radial-gradient(circle at var(--pointer-x, 50%) var(--pointer-y, 50%), rgb(131 232 196 / 12%), transparent 48%), repeating-linear-gradient(180deg, transparent 0 4px, rgb(238 234 222 / 3%) 5px); }
+.resume-tech-track span { transition: color 250ms ease, text-shadow 250ms ease; }
+.resume-tech-track span:hover { color: var(--resume-mint); text-shadow: 0 0 22px rgb(131 232 196 / 35%); }
+
+/* 上排保留技术栈，下排用清晰的暖白文字连续展示全部奖项。 */
+.resume-tech-row.resume-award-track {
+  color: var(--resume-ivory);
+  animation-duration: 110s;
+}
+.resume-award-track .resume-award-ticker-item {
+  gap: 20px;
+  padding-right: 36px;
+  font-family: var(--resume-sans);
+  font-size: clamp(17px, 1.4vw, 25px);
+  line-height: 1.5;
+  letter-spacing: 0;
+}
+.resume-award-ticker-item strong { color: var(--resume-ivory); font-weight: 500; }
+.resume-award-ticker-item time { color: #b5ccc3; font-size: 0.72em; }
+.resume-award-ticker-item small { color: #b5f4dd; font-size: 0.72em; }
+.resume-award-ticker-item strong,
+.resume-award-ticker-item time,
+.resume-award-ticker-item small { transition: color 250ms ease; }
+.resume-award-ticker-item:hover strong,
+.resume-award-ticker-item:hover time,
+.resume-award-ticker-item:hover small { color: var(--resume-mint); }
+
+.resume-project-image { transform-origin: center; }
+.resume-project-image::after { background: radial-gradient(circle at var(--pointer-x, 50%) var(--pointer-y, 50%), rgb(131 232 196 / 18%), transparent 40%), linear-gradient(180deg, transparent 52%, rgb(5 7 7 / 68%)); transition: opacity 300ms ease; }
+.resume-project-card { transition: border-color 300ms ease, box-shadow 300ms ease; }
+.resume-project-card:hover,
+.resume-project-card:focus-within { border-color: rgb(131 232 196 / 44%); box-shadow: 0 -28px 70px rgb(0 0 0 / 35%), 0 0 55px rgb(131 232 196 / 7%); }
+.resume-project-card li,
+.resume-strength-list li { transition: color 220ms ease, background 220ms ease, border-color 220ms ease, transform 220ms ease; }
+.resume-project-card li:hover,
+.resume-strength-list li:hover { color: var(--resume-mint); background: rgb(131 232 196 / 7%); border-color: rgb(131 232 196 / 44%); transform: translateY(-3px); }
+.resume-strengths-heading > .resume-interaction-hint { margin-top: 28px; }
+.resume-strength-list h3 button { display: flex; align-items: center; justify-content: space-between; gap: 20px; width: 100%; padding: 0; border: none; color: inherit; background: transparent; font: inherit; letter-spacing: inherit; text-align: left; cursor: pointer; transition: color 240ms ease; }
+.resume-strength-list h3 button > span { flex-shrink: 0; font-family: var(--resume-sans); color: var(--resume-mint); font-size: 24px; opacity: .3; transition: opacity 220ms ease, transform 220ms ease; }
+.resume-strength-list h3 button:hover,
+.resume-strength-list h3 button[aria-pressed="true"] { color: var(--resume-mint); }
+.resume-strength-list h3 button:hover > span,
+.resume-strength-list h3 button[aria-pressed="true"] > span { opacity: 1; transform: rotate(45deg); }
+.resume-strength-list article:focus-within { opacity: 1 !important; }
+.resume-contact-orbit { animation: resume-signal-orbit 60s linear infinite; }
+.resume-contact-actions a svg,
+.resume-footer a svg { transition: transform 300ms cubic-bezier(.22,1,.36,1); }
+.resume-contact-actions a:hover svg,
+.resume-footer a:hover svg { transform: translate(4px, -4px); }
+.resume-contact h2 span:last-child { text-shadow: 0 0 50px rgb(131 232 196 / 10%); }
+
+@media (max-width: 1180px) {
+  .resume-about-main { display: block; }
+  .resume-chapter-switch { margin-bottom: 36px; }
+  .resume-hero h1 { font-size: clamp(42px, 7.7vw, 86px); }
+  .resume-page[lang="en"] .resume-hero h1 { font-size: clamp(30px, 5.7vw, 68px); }
+}
+@media (max-width: 760px) {
+  .resume-hero h1 { font-size: clamp(22px, 7.7vw, 57px); line-height: 1.35; }
+  .resume-page[lang="en"] .resume-hero h1 { font-size: clamp(19px, 5.65vw, 42px); line-height: 1.5; }
+  .resume-hero h1 > span:last-of-type { padding-left: 0; }
+  .resume-hero-meta { justify-content: flex-end; }
+  .resume-hero-meta .resume-interaction-hint { display: none; }
+  .resume-chapter-switch { gap: 6px; }
+  .resume-chapter-switch button { flex: 1; justify-content: center; gap: 7px; padding: 10px 6px; font-size: 10px; }
+  .resume-contact-actions { gap: 28px; }
+}
+@media (hover: none), (pointer: coarse) {
+  .resume-pointer-light,
+  .resume-hero-meta .resume-interaction-hint { display: none; }
+}
+
+/* 语言切换使用独立位移属性，保留原有滚动动画。 */
+.resume-page [data-locale-copy]:not([data-hero-title]) {
+  --locale-opacity: 1;
+  --locale-offset: 0px;
+  translate: 0 var(--locale-offset, 0px);
+  opacity: var(--locale-opacity, 1);
+}
+.resume-particle-title { position: relative; user-select: none; cursor: grab; }
+.resume-particle-title[data-particle-held] { cursor: grabbing; }
+
+/* 入场与语言切换共存；默认可见，脚本不可用时内容仍能正常阅读。 */
+.resume-page [data-enter-item] {
+  --enter-opacity: 1;
+  --enter-y: 0px;
+  --locale-opacity: 1;
+  --locale-offset: 0px;
+  opacity: calc(var(--enter-opacity) * var(--locale-opacity));
+  translate: 0 calc(var(--enter-y) + var(--locale-offset));
+}
+.resume-page [data-enter-item]:focus-within { opacity: 1; }

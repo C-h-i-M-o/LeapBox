@@ -394,7 +394,7 @@ body:has(.resume-page)::-webkit-scrollbar {
 
 .resume-hero-meta {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
   padding-top: 20px;
   color: rgb(238 234 222 / 70%);
@@ -1404,8 +1404,6 @@ body:has(.resume-page)::-webkit-scrollbar {
 .resume-reading-progress span { display: block; width: 100%; height: 100%; background: var(--resume-mint); box-shadow: 0 0 16px var(--resume-mint); transform: scaleX(0); transform-origin: left; }
 .resume-pointer-light { position: fixed; z-index: 8; top: 0; left: 0; width: 600px; height: 600px; margin: -300px; border-radius: 50%; background: radial-gradient(circle, rgb(131 232 196 / 7%), transparent 64%); opacity: 0; mix-blend-mode: screen; pointer-events: none; transition: opacity 400ms ease; }
 .resume-page[data-pointer-active] .resume-pointer-light { opacity: 1; }
-.resume-interaction-hint { display: flex; align-items: center; gap: 10px; color: var(--resume-muted); font-size: 10px; font-weight: 450; letter-spacing: .06em; line-height: 1.6; }
-.resume-interaction-hint i { width: 6px; height: 6px; border-radius: 50%; background: var(--resume-mint); box-shadow: 0 0 14px var(--resume-mint); }
 .resume-hero-signal { animation: resume-signal-orbit 24s linear infinite; }
 @keyframes resume-signal-orbit { to { transform: rotate(360deg); } }
 
@@ -1456,7 +1454,6 @@ body:has(.resume-page)::-webkit-scrollbar {
 .resume-strength-list li { transition: color 220ms ease, background 220ms ease, border-color 220ms ease, transform 220ms ease; }
 .resume-project-card li:hover,
 .resume-strength-list li:hover { color: var(--resume-mint); background: rgb(131 232 196 / 7%); border-color: rgb(131 232 196 / 44%); transform: translateY(-3px); }
-.resume-strengths-heading > .resume-interaction-hint { margin-top: 28px; }
 .resume-strength-list h3 button { display: flex; align-items: center; justify-content: space-between; gap: 20px; width: 100%; padding: 0; border: none; color: inherit; background: transparent; font: inherit; letter-spacing: inherit; text-align: left; cursor: pointer; transition: color 240ms ease; }
 .resume-strength-list h3 button > span { flex-shrink: 0; font-family: var(--resume-sans); color: var(--resume-mint); font-size: 24px; opacity: .3; transition: opacity 220ms ease, transform 220ms ease; }
 .resume-strength-list h3 button:hover,
@@ -1481,15 +1478,12 @@ body:has(.resume-page)::-webkit-scrollbar {
   .resume-hero h1 { font-size: clamp(22px, 7.7vw, 57px); line-height: 1.35; }
   .resume-page[lang="en"] .resume-hero h1 { font-size: clamp(19px, 5.65vw, 42px); line-height: 1.5; }
   .resume-hero h1 > span:last-of-type { padding-left: 0; }
-  .resume-hero-meta { justify-content: flex-end; }
-  .resume-hero-meta .resume-interaction-hint { display: none; }
   .resume-chapter-switch { gap: 6px; }
   .resume-chapter-switch button { flex: 1; justify-content: center; gap: 7px; padding: 10px 6px; font-size: 10px; }
   .resume-contact-actions { gap: 28px; }
 }
 @media (hover: none), (pointer: coarse) {
-  .resume-pointer-light,
-  .resume-hero-meta .resume-interaction-hint { display: none; }
+  .resume-pointer-light { display: none; }
 }
 
 /* 语言切换使用独立位移属性，保留原有滚动动画。 */

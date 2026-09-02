@@ -52,7 +52,7 @@ export function ResumeNavigation({ content, locale, toggleLocale }: NavigationPr
   );
 }
 
-export function HeroSection({ content, interaction }: InteractiveSectionProps) {
+export function HeroSection({ content }: SharedSectionProps) {
   return (
     <section className="resume-hero" id="top" aria-labelledby="resume-hero-title" data-hero-stage>
       <div className="resume-hero-media" aria-hidden="true" data-hero-media>
@@ -73,7 +73,6 @@ export function HeroSection({ content, interaction }: InteractiveSectionProps) {
           <p>{content.hero.statement}</p>
         </div>
         <div className="resume-hero-meta" data-hero-reveal>
-          <span className="resume-interaction-hint"><i aria-hidden="true" />{interaction.particleHint}</span>
           <a href="#about"><ArrowDownIcon />{content.hero.scrollLabel}</a>
         </div>
       </div>
@@ -226,7 +225,7 @@ export function ProjectsSection({ content }: SharedSectionProps) {
   );
 }
 
-export function StrengthsSection({ content, interaction }: InteractiveSectionProps) {
+export function StrengthsSection({ content }: SharedSectionProps) {
   return (
     <section className="resume-strengths" id="strengths" aria-labelledby="resume-strengths-title">
       <div className="resume-strengths-stage resume-shell" data-strengths-stage>
@@ -236,7 +235,6 @@ export function StrengthsSection({ content, interaction }: InteractiveSectionPro
             {content.strengthsSection.title.split("\n").map((line, index) => <span key={index}>{line}</span>)}
           </h2>
           <p data-enter-item>{content.strengthsSection.introduction}</p>
-          <small className="resume-interaction-hint" data-enter-item>{interaction.strengthHint}</small>
         </div>
 
         <div className="resume-strength-list">

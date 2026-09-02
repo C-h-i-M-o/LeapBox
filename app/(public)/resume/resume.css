@@ -1,0 +1,1559 @@
+html:has(.resume-page) {
+  scroll-behavior: smooth;
+  scroll-padding-top: 0;
+  scrollbar-width: none;
+  color-scheme: dark;
+  background: #080a0a;
+}
+
+body:has(.resume-page) {
+  -ms-overflow-style: none;
+  background: #080a0a;
+}
+
+html:has(.resume-page)::-webkit-scrollbar,
+body:has(.resume-page)::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.resume-page {
+  --resume-max-width: 1700px;
+  --resume-black: #080a0a;
+  --resume-panel: #0d1010;
+  --resume-panel-light: #121615;
+  --resume-ivory: #eeeade;
+  --resume-muted: #969a94;
+  --resume-line: rgb(238 234 222 / 16%);
+  --resume-line-strong: rgb(238 234 222 / 28%);
+  --resume-mint: #83e8c4;
+  --resume-serif: "Bodoni 72", "Iowan Old Style", "Songti SC", "STSong", Georgia, serif;
+  --resume-sans: "Avenir Next", "Segoe UI Variable", "PingFang SC", "Microsoft YaHei", sans-serif;
+  min-width: 320px;
+  min-height: 100vh;
+  overflow: clip;
+  color: var(--resume-ivory);
+  background: var(--resume-black);
+  font-family: var(--resume-sans);
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.resume-page *,
+.resume-page *::before,
+.resume-page *::after {
+  box-sizing: border-box;
+}
+
+.resume-page a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.resume-page button,
+.resume-page a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.resume-page button {
+  font: inherit;
+}
+
+.resume-visually-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+.resume-shell {
+  width: min(calc(100% - clamp(48px, 6vw, 120px)), var(--resume-max-width));
+  margin-inline: auto;
+}
+
+.resume-grain {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.09;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.82' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.72'/%3E%3C/svg%3E");
+  mix-blend-mode: soft-light;
+}
+
+.resume-section-label,
+.resume-panel-kicker {
+  margin: 0;
+  color: var(--resume-mint);
+  font-size: 10px;
+  font-weight: 680;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.resume-nav {
+  position: fixed;
+  z-index: 50;
+  top: 0;
+  left: 50%;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  width: min(calc(100% - clamp(48px, 6vw, 120px)), var(--resume-max-width));
+  min-height: 88px;
+  border-bottom: 1px solid rgb(238 234 222 / 16%);
+  background: linear-gradient(180deg, rgb(8 10 10 / 82%), rgb(8 10 10 / 22%));
+  transform: translateX(-50%);
+  backdrop-filter: blur(12px);
+}
+
+.resume-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  width: max-content;
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.resume-brand-mark {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid var(--resume-line-strong);
+  color: var(--resume-mint);
+  font-family: var(--resume-serif);
+  font-size: 13px;
+  letter-spacing: 0;
+}
+
+.resume-nav-links {
+  display: flex;
+  gap: clamp(18px, 2.2vw, 42px);
+}
+
+.resume-nav-links a,
+.resume-language-button {
+  color: rgb(238 234 222 / 62%);
+  font-size: 10px;
+  font-weight: 620;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  transition: color 180ms ease;
+}
+
+.resume-nav-links a:hover,
+.resume-nav-links a:focus-visible,
+.resume-language-button:hover,
+.resume-language-button:focus-visible {
+  color: var(--resume-ivory);
+}
+
+.resume-nav-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: clamp(18px, 2vw, 32px);
+}
+
+.resume-language-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.resume-language-button span {
+  opacity: 0.42;
+}
+
+.resume-language-button span.is-active {
+  color: var(--resume-mint);
+  opacity: 1;
+}
+
+.resume-language-button i {
+  width: 18px;
+  height: 1px;
+  background: var(--resume-line);
+}
+
+.resume-contact-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 18px;
+  min-height: 44px;
+  padding: 0 17px;
+  border: 1px solid var(--resume-line);
+  background: rgb(8 10 10 / 34%);
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  transition: color 180ms ease, border-color 180ms ease, background 180ms ease;
+}
+
+.resume-contact-button svg,
+.resume-primary-link svg,
+.resume-text-link svg,
+.resume-footer svg {
+  width: 18px;
+  height: 18px;
+}
+
+.resume-contact-button:hover,
+.resume-contact-button:focus-visible {
+  border-color: var(--resume-mint);
+  color: var(--resume-black);
+  background: var(--resume-mint);
+}
+
+.resume-hero {
+  position: relative;
+  display: grid;
+  min-height: 100svh;
+  isolation: isolate;
+  overflow: hidden;
+}
+
+.resume-hero-media,
+.resume-hero-media video,
+.resume-hero-shade {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.resume-hero-media {
+  z-index: -2;
+  background: #060808 url("/resume/hero-poster.jpg") center / cover no-repeat;
+  will-change: transform;
+}
+
+.resume-hero-media video {
+  object-fit: cover;
+  filter: saturate(0.52) contrast(1.18) brightness(0.57);
+}
+
+.resume-hero-shade {
+  background:
+    radial-gradient(circle at 68% 38%, transparent 0 12%, rgb(5 7 7 / 18%) 34%, rgb(5 7 7 / 72%) 72%),
+    linear-gradient(180deg, rgb(5 7 7 / 28%) 0%, rgb(5 7 7 / 15%) 42%, #080a0a 100%),
+    linear-gradient(90deg, rgb(5 7 7 / 84%) 0%, rgb(5 7 7 / 42%) 52%, rgb(5 7 7 / 12%) 100%);
+}
+
+.resume-hero-signal {
+  position: absolute;
+  z-index: 1;
+  top: 22%;
+  right: clamp(40px, 7vw, 140px);
+  color: var(--resume-mint);
+  opacity: 0.48;
+  will-change: transform;
+}
+
+.resume-hero-signal::before {
+  position: absolute;
+  top: 50%;
+  right: 100%;
+  width: 22vw;
+  height: 1px;
+  content: "";
+  background: linear-gradient(90deg, transparent, rgb(131 232 196 / 36%));
+}
+
+.resume-hero-signal svg {
+  width: 72px;
+  height: 72px;
+}
+
+.resume-hero-content {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto 1fr auto auto;
+  min-height: 100svh;
+  padding-top: clamp(132px, 15vh, 184px);
+  padding-bottom: 30px;
+}
+
+.resume-hero-kicker {
+  display: flex;
+  justify-content: space-between;
+  color: rgb(238 234 222 / 72%);
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.resume-hero-kicker span:first-child {
+  color: var(--resume-mint);
+}
+
+.resume-hero h1,
+.resume-about-heading h2,
+.resume-awards-heading h2,
+.resume-section-heading h2,
+.resume-strengths-heading h2,
+.resume-contact h2 {
+  margin: 0;
+  font-family: var(--resume-serif);
+  font-weight: 400;
+  text-wrap: balance;
+}
+
+.resume-hero h1 {
+  align-self: end;
+  max-width: 1450px;
+  padding: clamp(38px, 6vh, 76px) 0 clamp(32px, 4.5vh, 56px);
+  font-size: clamp(64px, 7.9vw, 148px);
+  line-height: 0.86;
+  letter-spacing: -0.06em;
+}
+
+.resume-hero h1 > span {
+  display: block;
+  overflow: visible;
+  will-change: transform;
+}
+
+.resume-hero h1 > span:last-child {
+  padding-left: 8.2vw;
+  color: rgb(238 234 222 / 74%);
+  font-style: italic;
+}
+
+.resume-hero-bottom {
+  max-width: 650px;
+  padding: 26px 0;
+  border-top: 1px solid var(--resume-line);
+}
+
+.resume-hero-bottom > p,
+.resume-section-heading > p,
+.resume-awards-heading > p,
+.resume-strengths-heading > p,
+.resume-contact-bottom > p {
+  margin: 0;
+  color: var(--resume-muted);
+  font-size: clamp(14px, 1vw, 17px);
+  line-height: 1.85;
+}
+
+.resume-contact-actions {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.resume-primary-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 28px;
+  min-width: 210px;
+  min-height: 52px;
+  padding: 0 20px;
+  color: #06100d !important;
+  background: var(--resume-mint);
+  font-size: 11px;
+  font-weight: 720;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition: transform 180ms ease, background 180ms ease;
+}
+
+.resume-primary-link:hover,
+.resume-primary-link:focus-visible {
+  background: #b5f4dd;
+  transform: translateY(-3px);
+}
+
+.resume-text-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 5px;
+  border-bottom: 1px solid var(--resume-line);
+  color: rgb(238 234 222 / 78%);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.resume-hero-meta {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding-top: 20px;
+  color: rgb(238 234 222 / 70%);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.resume-hero-meta a {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.resume-hero-meta svg {
+  width: 18px;
+  height: 18px;
+}
+
+.resume-about {
+  position: relative;
+  border-top: 1px solid var(--resume-line);
+  background:
+    linear-gradient(90deg, transparent 49.94%, rgb(238 234 222 / 5%) 50%, transparent 50.06%),
+    var(--resume-black);
+}
+
+.resume-about-stage {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  height: 100svh;
+  min-height: 100svh;
+  overflow: hidden;
+}
+
+.resume-about-main {
+  display: grid;
+  min-height: 0;
+  padding-top: clamp(108px, 11vh, 128px);
+  padding-bottom: clamp(30px, 4vh, 46px);
+  overflow: hidden;
+}
+
+.resume-stage-index {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 14px;
+  align-items: center;
+  color: rgb(238 234 222 / 48%);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+}
+
+.resume-stage-index i {
+  height: 1px;
+  background: var(--resume-line);
+}
+
+.resume-about-layout {
+  display: grid;
+  grid-template-columns: minmax(330px, 0.84fr) minmax(0, 1.16fr);
+  gap: clamp(50px, 7vw, 130px);
+  align-items: stretch;
+  height: 100%;
+  min-height: 0;
+}
+
+.resume-portrait {
+  position: relative;
+  align-self: stretch;
+  width: min(100%, 500px);
+  min-height: 0;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid var(--resume-line);
+  background: #060808;
+}
+
+.resume-portrait::before,
+.resume-portrait::after {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  pointer-events: none;
+  content: "";
+}
+
+.resume-portrait::before {
+  background:
+    linear-gradient(90deg, transparent 49.8%, rgb(131 232 196 / 18%) 50%, transparent 50.2%),
+    linear-gradient(180deg, transparent 67%, rgb(6 8 8 / 88%));
+}
+
+.resume-portrait::after {
+  background-image: repeating-linear-gradient(180deg, transparent 0 4px, rgb(238 234 222 / 3%) 5px);
+}
+
+.resume-portrait img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  object-fit: cover;
+  filter: contrast(1.07) saturate(0.8);
+  will-change: transform;
+}
+
+.resume-portrait-scan {
+  position: absolute;
+  z-index: 2;
+  top: 2%;
+  right: 0;
+  left: 0;
+  height: 54px;
+  border-top: 1px solid rgb(131 232 196 / 48%);
+  background: linear-gradient(180deg, rgb(131 232 196 / 7%), transparent);
+  box-shadow: 0 -18px 42px rgb(131 232 196 / 7%);
+  pointer-events: none;
+  will-change: transform;
+}
+
+.resume-portrait figcaption {
+  position: absolute;
+  z-index: 3;
+  right: 22px;
+  bottom: 18px;
+  left: 22px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: rgb(238 234 222 / 74%);
+  font-size: 10px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.resume-portrait figcaption svg,
+.resume-project-outcome svg,
+.resume-location svg {
+  width: 22px;
+  height: 22px;
+  color: var(--resume-mint);
+}
+
+.resume-about-panels {
+  position: relative;
+  min-height: min(58vh, 620px);
+}
+
+.resume-about-panel {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  will-change: transform, opacity;
+}
+
+.resume-about-introduction {
+  max-width: 830px;
+  margin: clamp(28px, 4vh, 48px) 0 0;
+  font-family: var(--resume-serif);
+  font-size: clamp(28px, 2.6vw, 48px);
+  line-height: 1.2;
+  letter-spacing: -0.025em;
+}
+
+.resume-contact-lines {
+  max-width: 780px;
+  margin-top: clamp(42px, 6vh, 72px);
+  border-top: 1px solid var(--resume-line);
+}
+
+.resume-contact-lines a {
+  display: grid;
+  grid-template-columns: 88px 1fr auto;
+  gap: 24px;
+  align-items: center;
+  min-height: 70px;
+  border-bottom: 1px solid var(--resume-line);
+  transition: color 180ms ease, padding 180ms ease;
+}
+
+.resume-contact-lines a:hover,
+.resume-contact-lines a:focus-visible {
+  padding-left: 10px;
+  color: var(--resume-mint);
+}
+
+.resume-contact-lines span,
+.resume-experience-panel time {
+  color: var(--resume-muted);
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.resume-contact-lines strong {
+  overflow: hidden;
+  font-size: clamp(14px, 1vw, 18px);
+  font-weight: 520;
+  text-overflow: ellipsis;
+}
+
+.resume-contact-lines svg {
+  width: 20px;
+  height: 20px;
+}
+
+.resume-experience-panel time {
+  display: block;
+  margin-top: clamp(28px, 4vh, 48px);
+}
+
+.resume-experience-panel h3 {
+  max-width: 820px;
+  margin: 18px 0 0;
+  font-family: var(--resume-serif);
+  font-size: clamp(34px, 3.4vw, 64px);
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: -0.035em;
+}
+
+.resume-experience-panel > p:last-child {
+  max-width: 720px;
+  margin: 20px 0 0;
+  color: var(--resume-muted);
+  font-size: clamp(14px, 1vw, 17px);
+  line-height: 1.8;
+}
+
+.resume-experience-panel .resume-timeline-role {
+  margin: 22px 0 0;
+  color: var(--resume-ivory);
+  font-size: 11px;
+  font-weight: 680;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.resume-tech-marquee {
+  padding: clamp(24px, 3vh, 34px) 0;
+  overflow: hidden;
+  border-top: 1px solid var(--resume-line);
+  border-bottom: 1px solid var(--resume-line);
+  background: #0b0e0d;
+}
+
+.resume-tech-row {
+  display: flex;
+  width: max-content;
+  animation: resume-tech-forward 34s linear infinite;
+}
+
+.resume-tech-row + .resume-tech-row {
+  margin-top: 16px;
+}
+
+.resume-tech-row.is-reverse {
+  animation-name: resume-tech-reverse;
+  color: rgb(238 234 222 / 48%);
+}
+
+.resume-tech-track {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+}
+
+.resume-tech-track span {
+  display: inline-flex;
+  align-items: center;
+  gap: 28px;
+  padding-right: 28px;
+  font-family: var(--resume-serif);
+  font-size: clamp(28px, 3vw, 54px);
+  line-height: 1;
+  letter-spacing: -0.025em;
+  white-space: nowrap;
+}
+
+.resume-tech-track i {
+  width: 8px;
+  height: 8px;
+  border: 1px solid var(--resume-mint);
+  border-radius: 50%;
+}
+
+@keyframes resume-tech-forward {
+  to { transform: translateX(-50%); }
+}
+
+@keyframes resume-tech-reverse {
+  from { transform: translateX(-50%); }
+  to { transform: translateX(0); }
+}
+
+.resume-awards {
+  position: relative;
+  border-bottom: 1px solid var(--resume-line);
+  background:
+    radial-gradient(circle at 72% 50%, rgb(131 232 196 / 8%), transparent 31%),
+    linear-gradient(180deg, #0b0e0d, #080a0a);
+}
+
+.resume-awards-stage {
+  display: grid;
+  grid-template-columns: minmax(320px, 0.72fr) minmax(0, 1.28fr);
+  gap: clamp(60px, 8vw, 150px);
+  align-items: center;
+  min-height: 100svh;
+  padding-top: clamp(118px, 13vh, 150px);
+  padding-bottom: clamp(48px, 7vh, 78px);
+  overflow: hidden;
+}
+
+.resume-awards-heading h2 {
+  margin-top: 38px;
+  font-size: clamp(48px, 5.1vw, 92px);
+  line-height: 0.95;
+  letter-spacing: -0.05em;
+}
+
+.resume-awards-heading h2 span,
+.resume-section-heading h2 span,
+.resume-strengths-heading h2 span,
+.resume-contact h2 span {
+  display: block;
+}
+
+.resume-awards-heading > p:last-child {
+  max-width: 470px;
+  margin-top: 36px;
+}
+
+.resume-awards-viewport {
+  position: relative;
+  height: min(74vh, 700px);
+  min-height: 560px;
+  overflow: hidden;
+  perspective: 1100px;
+  mask-image: linear-gradient(180deg, transparent, #000 14%, #000 86%, transparent);
+  will-change: transform, opacity;
+}
+
+.resume-awards-viewport::before {
+  position: absolute;
+  z-index: 3;
+  top: 50%;
+  right: 7%;
+  left: 7%;
+  height: 1px;
+  content: "";
+  background: linear-gradient(90deg, transparent, rgb(131 232 196 / 40%), transparent);
+  box-shadow: 0 0 36px rgb(131 232 196 / 20%);
+}
+
+.resume-awards-axis {
+  position: absolute;
+  z-index: 4;
+  top: calc(50% - 25px);
+  right: 1%;
+  color: var(--resume-mint);
+}
+
+.resume-awards-axis svg {
+  width: 50px;
+  height: 50px;
+}
+
+.resume-awards-ring {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  left: 0;
+  height: 0;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+.resume-award-item {
+  position: absolute;
+  top: -58px;
+  left: 50%;
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr) auto;
+  gap: 24px;
+  align-items: center;
+  width: min(90%, 650px);
+  min-height: 116px;
+  margin-left: max(-45%, -325px);
+  padding: 24px 28px;
+  border: 1px solid rgb(238 234 222 / 22%);
+  color: var(--resume-ivory);
+  background: rgb(10 13 12 / 92%);
+  box-shadow: 0 22px 70px rgb(0 0 0 / 38%);
+  font: inherit;
+  text-align: left;
+  cursor: default;
+  backface-visibility: hidden;
+  transform-style: preserve-3d;
+  transition: border-color 180ms ease, background 180ms ease, box-shadow 180ms ease;
+}
+
+.resume-award-item:hover,
+.resume-award-item:focus-visible,
+.resume-award-item:focus-within {
+  border-color: var(--resume-mint);
+  background: #111714;
+  box-shadow: 0 24px 82px rgb(0 0 0 / 58%), 0 0 34px rgb(131 232 196 / 8%);
+}
+
+.resume-award-period {
+  color: var(--resume-mint);
+  font-size: 10px;
+  font-weight: 680;
+  letter-spacing: 0.13em;
+}
+
+.resume-award-title {
+  margin: 0;
+  font-family: var(--resume-serif);
+  font-size: clamp(18px, 1.55vw, 27px);
+  font-weight: 400;
+  line-height: 1.16;
+}
+
+.resume-award-distinction {
+  margin: 0;
+  padding: 6px 9px;
+  border: 1px solid var(--resume-line);
+  color: var(--resume-muted);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.resume-projects {
+  position: relative;
+  padding: clamp(130px, 14vw, 230px) 0 clamp(140px, 16vw, 260px);
+  background:
+    linear-gradient(180deg, rgb(238 234 222 / 2%), transparent 18%),
+    var(--resume-panel);
+}
+
+.resume-section-heading {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.28fr) minmax(0, 1.2fr) minmax(280px, 0.52fr);
+  gap: clamp(30px, 5vw, 90px);
+  align-items: end;
+  margin-bottom: clamp(90px, 10vw, 170px);
+}
+
+.resume-section-heading h2 {
+  font-size: clamp(48px, 5.8vw, 104px);
+  line-height: 0.95;
+  letter-spacing: -0.045em;
+}
+
+.resume-project-stack {
+  position: relative;
+  padding-bottom: 18vh;
+}
+
+.resume-project-card {
+  position: sticky;
+  top: 104px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.16fr) minmax(380px, 0.84fr);
+  min-height: min(78vh, 780px);
+  margin-bottom: 14vh;
+  overflow: hidden;
+  border: 1px solid var(--resume-line-strong);
+  background: var(--resume-black);
+  box-shadow: 0 -28px 70px rgb(0 0 0 / 35%);
+}
+
+.resume-project-card:nth-child(1) { z-index: 1; }
+.resume-project-card:nth-child(2) { z-index: 2; top: 116px; }
+.resume-project-card:nth-child(3) { z-index: 3; top: 128px; margin-bottom: 0; }
+
+.resume-project-image {
+  position: relative;
+  min-height: 100%;
+  overflow: hidden;
+  background: #060808;
+}
+
+.resume-project-image::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  background:
+    linear-gradient(180deg, transparent 52%, rgb(5 7 7 / 58%)),
+    linear-gradient(90deg, transparent 70%, rgb(5 7 7 / 32%));
+  pointer-events: none;
+}
+
+.resume-project-image img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  will-change: transform;
+}
+
+.resume-project-image > span {
+  position: absolute;
+  z-index: 1;
+  top: 24px;
+  left: 24px;
+  padding: 7px 10px;
+  border: 1px solid rgb(238 234 222 / 22%);
+  color: rgb(238 234 222 / 76%);
+  background: rgb(8 10 10 / 55%);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  backdrop-filter: blur(8px);
+}
+
+.resume-project-copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: clamp(32px, 4vw, 66px);
+  will-change: transform, opacity;
+}
+
+.resume-project-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+}
+
+.resume-project-title-row p {
+  margin: 0 0 12px;
+  color: var(--resume-mint);
+  font-size: 9px;
+  font-weight: 680;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.resume-project-card h3 {
+  margin: 0;
+  font-family: var(--resume-serif);
+  font-size: clamp(42px, 4.3vw, 78px);
+  font-weight: 400;
+  line-height: 0.94;
+  letter-spacing: -0.045em;
+}
+
+.resume-project-title-row > a {
+  display: grid;
+  flex: 0 0 auto;
+  width: 52px;
+  height: 52px;
+  place-items: center;
+  border: 1px solid var(--resume-line);
+  transition: color 180ms ease, border-color 180ms ease, background 180ms ease;
+}
+
+.resume-project-title-row > a:hover,
+.resume-project-title-row > a:focus-visible {
+  border-color: var(--resume-mint);
+  color: var(--resume-black);
+  background: var(--resume-mint);
+}
+
+.resume-project-title-row svg {
+  width: 22px;
+  height: 22px;
+}
+
+.resume-private-badge {
+  flex: 0 0 auto;
+  padding: 8px 10px;
+  border: 1px solid var(--resume-line);
+  color: var(--resume-muted);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.resume-project-description {
+  margin: clamp(46px, 6vh, 82px) 0 0;
+  color: var(--resume-muted);
+  font-size: clamp(14px, 1vw, 17px);
+  line-height: 1.85;
+}
+
+.resume-project-outcome {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 26px 0 0;
+  color: rgb(238 234 222 / 82%);
+  font-size: 12px;
+}
+
+.resume-project-card ul,
+.resume-strength-list ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: auto 0 0;
+  padding: 32px 0 0;
+  list-style: none;
+}
+
+.resume-project-card li,
+.resume-strength-list li {
+  padding: 6px 9px;
+  border: 1px solid var(--resume-line);
+  color: var(--resume-muted);
+  font-size: 9px;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.resume-strengths {
+  border-top: 1px solid var(--resume-line);
+  background:
+    radial-gradient(circle at 20% 36%, rgb(131 232 196 / 5%), transparent 28%),
+    var(--resume-black);
+}
+
+.resume-strengths-stage {
+  display: grid;
+  grid-template-columns: minmax(330px, 0.82fr) minmax(0, 1.18fr);
+  gap: clamp(60px, 9vw, 170px);
+  align-items: center;
+  min-height: 100svh;
+  padding-top: clamp(118px, 13vh, 150px);
+  padding-bottom: clamp(48px, 7vh, 78px);
+  overflow: hidden;
+}
+
+.resume-strengths-heading h2 {
+  margin-top: 38px;
+  font-size: clamp(48px, 5.2vw, 94px);
+  line-height: 0.94;
+  letter-spacing: -0.05em;
+}
+
+.resume-strengths-heading > p:last-child {
+  max-width: 470px;
+  margin-top: 36px;
+}
+
+.resume-strength-list {
+  position: relative;
+  isolation: isolate;
+  border-bottom: 1px solid var(--resume-line);
+}
+
+.resume-strength-glow {
+  position: absolute;
+  z-index: 0;
+  top: 0;
+  right: -7%;
+  width: 82%;
+  height: 146px;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 68% 50%, rgb(131 232 196 / 20%), rgb(131 232 196 / 6%) 34%, transparent 70%),
+    linear-gradient(90deg, transparent, rgb(131 232 196 / 14%) 55%, transparent);
+  filter: blur(7px);
+  transform: translate3d(0, 0, 0);
+  will-change: transform, opacity;
+}
+
+.resume-strength-list article {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  gap: 24px;
+  min-height: 146px;
+  padding: 24px 0;
+  border-top: 1px solid var(--resume-line);
+  transform-origin: left center;
+  will-change: transform, opacity;
+}
+
+.resume-strength-list article > span {
+  padding-top: 5px;
+  color: var(--resume-mint);
+  font-family: var(--resume-serif);
+  font-size: 18px;
+}
+
+.resume-strength-list h3 {
+  margin: 0;
+  font-family: var(--resume-serif);
+  font-size: clamp(28px, 2.5vw, 46px);
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+.resume-strength-list article p {
+  max-width: 720px;
+  margin: 14px 0 0;
+  color: var(--resume-muted);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.resume-strength-list ul {
+  margin-top: 18px;
+  padding-top: 0;
+}
+
+.resume-contact {
+  position: relative;
+  display: grid;
+  min-height: 100svh;
+  isolation: isolate;
+  overflow: hidden;
+  border-top: 1px solid var(--resume-line);
+  background:
+    radial-gradient(circle at 78% 36%, rgb(131 232 196 / 8%), transparent 28%),
+    #090c0b;
+}
+
+.resume-contact > .resume-shell {
+  display: grid;
+  grid-template-rows: auto 1fr auto auto;
+  min-height: 100svh;
+  padding-top: clamp(118px, 13vh, 150px);
+}
+
+.resume-contact h2 {
+  align-self: center;
+  max-width: 1520px;
+  padding: clamp(56px, 7vh, 100px) 0;
+  font-size: clamp(58px, 8vw, 150px);
+  line-height: 0.88;
+  letter-spacing: -0.055em;
+}
+
+.resume-contact h2 span:last-child {
+  padding-left: 7vw;
+  color: var(--resume-mint);
+  font-style: italic;
+}
+
+.resume-contact-orbit {
+  position: absolute;
+  z-index: -1;
+  top: 18%;
+  right: 2vw;
+  color: var(--resume-mint);
+  opacity: 0.16;
+}
+
+.resume-contact-orbit::before,
+.resume-contact-orbit::after {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  content: "";
+  transform: translate(-50%, -50%);
+}
+
+.resume-contact-orbit::before {
+  width: 36vw;
+  height: 36vw;
+}
+
+.resume-contact-orbit::after {
+  width: 48vw;
+  height: 48vw;
+}
+
+.resume-contact-orbit svg {
+  width: 22vw;
+  height: 22vw;
+}
+
+.resume-contact-bottom {
+  display: grid;
+  grid-template-columns: minmax(280px, 590px) auto;
+  justify-content: space-between;
+  gap: 48px;
+  align-items: end;
+  padding: 32px 0;
+  border-top: 1px solid var(--resume-line);
+}
+
+.resume-contact-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.resume-location {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--resume-muted);
+  font-size: 10px;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+.resume-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 76px;
+  border-top: 1px solid var(--resume-line);
+  color: rgb(238 234 222 / 45%);
+  font-size: 9px;
+  font-weight: 620;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.resume-footer a {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: rgb(238 234 222 / 76%);
+}
+
+.resume-page :focus-visible {
+  outline: 2px solid var(--resume-mint);
+  outline-offset: 4px;
+}
+
+@media (max-width: 1380px) {
+  .resume-nav-links {
+    gap: 18px;
+  }
+
+  .resume-project-card {
+    grid-template-columns: minmax(0, 1.08fr) minmax(350px, 0.92fr);
+  }
+
+  .resume-awards-stage,
+  .resume-strengths-stage {
+    gap: 62px;
+  }
+}
+
+@media (max-width: 1180px) {
+  .resume-nav {
+    grid-template-columns: 1fr auto;
+  }
+
+  .resume-nav-links {
+    display: none;
+  }
+
+  .resume-awards-stage,
+  .resume-strengths-stage {
+    display: block;
+    min-height: auto;
+    padding-top: 150px;
+    padding-bottom: 110px;
+    overflow: visible;
+  }
+
+  .resume-about-stage {
+    display: block;
+    height: auto;
+    min-height: auto;
+    overflow: visible;
+  }
+
+  .resume-about-main {
+    padding-top: 150px;
+    padding-bottom: 110px;
+    overflow: visible;
+  }
+
+  .resume-about-heading,
+  .resume-section-heading {
+    grid-template-columns: 1fr;
+  }
+
+  .resume-stage-index {
+    display: none;
+  }
+
+  .resume-about-layout {
+    grid-template-columns: minmax(280px, 0.72fr) minmax(0, 1.28fr);
+    gap: 48px;
+    align-items: start;
+  }
+
+  .resume-portrait {
+    position: sticky;
+    top: 110px;
+    max-height: none;
+  }
+
+  .resume-portrait img {
+    height: auto;
+    aspect-ratio: 4 / 5;
+  }
+
+  .resume-about-panels {
+    display: grid;
+    gap: 28px;
+    min-height: 0;
+  }
+
+  .resume-about-panel {
+    position: relative;
+    inset: auto;
+    min-height: 320px;
+    padding: 34px;
+    border: 1px solid var(--resume-line);
+    opacity: 1 !important;
+    visibility: visible !important;
+    transform: none !important;
+  }
+
+  .resume-about-introduction {
+    font-size: clamp(27px, 4vw, 42px);
+  }
+
+  .resume-contact-lines {
+    margin-top: 44px;
+  }
+
+  .resume-awards-stage {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .resume-awards-viewport {
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+    perspective: none;
+    mask-image: none;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .resume-awards-viewport::before,
+  .resume-awards-axis {
+    display: none;
+  }
+
+  .resume-awards-ring {
+    position: relative;
+    top: auto;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+    height: auto;
+    transform: none !important;
+  }
+
+  .resume-award-item {
+    position: relative;
+    top: auto;
+    left: auto;
+    grid-template-columns: 78px 1fr;
+    width: auto;
+    min-height: 130px;
+    margin: 0;
+    transform: none !important;
+  }
+
+  .resume-award-distinction {
+    grid-column: 2;
+    justify-self: start;
+  }
+
+  .resume-project-card,
+  .resume-project-card:nth-child(2),
+  .resume-project-card:nth-child(3) {
+    position: relative;
+    top: auto;
+    grid-template-columns: 1fr;
+    min-height: auto;
+    margin-bottom: 34px;
+  }
+
+  .resume-project-image {
+    min-height: 520px;
+  }
+
+  .resume-project-copy {
+    min-height: 480px;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .resume-strengths-stage {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .resume-strength-list article {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .resume-strength-glow {
+    display: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .resume-shell,
+  .resume-nav {
+    width: calc(100% - 36px);
+  }
+
+  .resume-nav {
+    min-height: 74px;
+  }
+
+  .resume-brand > span:last-child,
+  .resume-contact-button {
+    display: none;
+  }
+
+  .resume-hero-content {
+    padding-top: 112px;
+  }
+
+  .resume-hero-kicker {
+    flex-direction: column;
+    gap: 7px;
+  }
+
+  .resume-hero h1 {
+    font-size: clamp(48px, 14.8vw, 82px);
+  }
+
+  .resume-hero h1 > span:last-child,
+  .resume-contact h2 span:last-child {
+    padding-left: 0;
+  }
+
+  .resume-hero-bottom,
+  .resume-contact-bottom {
+    grid-template-columns: 1fr;
+  }
+
+  .resume-contact-actions {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .resume-awards-stage,
+  .resume-strengths-stage {
+    padding-top: 116px;
+    padding-bottom: 86px;
+  }
+
+  .resume-about-main {
+    padding-top: 116px;
+    padding-bottom: 86px;
+  }
+
+  .resume-awards-heading h2,
+  .resume-strengths-heading h2 {
+    margin-top: 28px;
+    font-size: clamp(42px, 12vw, 66px);
+  }
+
+  .resume-about-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .resume-portrait {
+    position: relative;
+    top: auto;
+  }
+
+  .resume-about-panel {
+    min-height: 0;
+    padding: 26px 22px;
+  }
+
+  .resume-contact-lines a {
+    grid-template-columns: 64px minmax(0, 1fr) auto;
+    gap: 10px;
+  }
+
+  .resume-contact-lines strong {
+    font-size: 12px;
+  }
+
+  .resume-tech-track span {
+    font-size: 28px;
+  }
+
+  .resume-awards-ring {
+    grid-template-columns: 1fr;
+  }
+
+  .resume-award-item {
+    grid-template-columns: 70px 1fr;
+    padding: 20px;
+  }
+
+  .resume-projects {
+    padding-top: 110px;
+  }
+
+  .resume-section-heading {
+    margin-bottom: 72px;
+  }
+
+  .resume-section-heading h2 {
+    font-size: clamp(44px, 12vw, 68px);
+  }
+
+  .resume-project-image {
+    min-height: 310px;
+  }
+
+  .resume-project-copy {
+    min-height: 460px;
+    padding: 28px 22px;
+  }
+
+  .resume-project-card h3 {
+    font-size: 42px;
+  }
+
+  .resume-private-badge {
+    max-width: 108px;
+    text-align: center;
+  }
+
+  .resume-strength-list article {
+    grid-template-columns: 48px 1fr;
+  }
+
+  .resume-contact > .resume-shell {
+    padding-top: 116px;
+  }
+
+  .resume-contact h2 {
+    font-size: clamp(48px, 14vw, 80px);
+  }
+
+  .resume-footer {
+    align-items: flex-start;
+    flex-direction: column;
+    justify-content: center;
+    gap: 10px;
+  }
+}

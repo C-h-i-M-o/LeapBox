@@ -28,10 +28,10 @@ export function ResumePortfolio() {
       <div className="resume-reading-progress" aria-hidden="true"><span data-reading-progress /></div>
       <div className="resume-pointer-light" data-pointer-light aria-hidden="true" />
       <ResumeNavigation content={content} locale={locale} toggleLocale={toggleLocale} />
-      <HeroSection content={content} interaction={interaction} />
+      <HeroSection content={content} />
       <AboutSection content={content} interaction={interaction} />
       <ProjectsSection content={content} />
-      <StrengthsSection content={content} interaction={interaction} />
+      <StrengthsSection content={content} />
       <ContactSection content={content} />
     </main>
   );

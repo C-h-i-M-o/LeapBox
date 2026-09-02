@@ -1,17 +1,14 @@
 "use client";
 
-import { useGSAP } from "@gsap/react";
-import gsap from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
+import type { ScrollTrigger } from "gsap/ScrollTrigger";
 import type { RefObject } from "react";
-
-gsap.registerPlugin(useGSAP, ScrollTrigger);
+import { useResumeGsap } from "./use-resume-gsap";
 
 export function useResumeMotion(
   rootRef: RefObject<HTMLElement | null>,
 ): void {
-  useGSAP(
-    () => {
+  useResumeGsap(
+    ({ gsap }) => {
       const root = rootRef.current;
       if (!root) return;
       const aboutButtons = Array.from(root.querySelectorAll<HTMLButtonElement>("[data-about-select]"));

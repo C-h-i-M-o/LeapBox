@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useSyncExternalStore, type RefObject } from "react";
-import gsap from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
+import type gsap from "gsap";
+import type { ScrollTrigger } from "gsap/ScrollTrigger";
+import { loadResumeGsap, type ResumeGsapRuntime } from "./use-resume-gsap";
 import { getReadingScrollPosition, resumeMotionEvents } from "./resume-motion-model.ts";
 
 import {
@@ -57,6 +58,7 @@ export function useResumeLocale(rootRef: RefObject<HTMLElement | null>): {
   content: ResumeContent;
 } {
   const transitionRef = useRef<gsap.core.Tween | null>(null);
+  const runtimeRef = useRef<ResumeGsapRuntime | null>(null);
   const lockedRef = useRef(false);
   const readingRef = useRef<ReadingPosition | null>(null);
   const targetsRef = useRef<HTMLElement[]>([]);
@@ -67,9 +69,19 @@ export function useResumeLocale(rootRef: RefObject<HTMLElement | null>): {
   );
   const previousLocaleRef = useRef(locale);
 
+  useEffect(() => {
+    let disposed = false;
+    void loadResumeGsap().then((runtime) => {
+      if (!disposed) runtimeRef.current = runtime;
+    }).catch(() => { /* 动画不可用时语言切换仍可直接生效。 */ });
+    return () => { disposed = true; runtimeRef.current = null; };
+  }, []);
+
   useLayoutEffect(() => {
     const root = rootRef.current;
-    if (!root) return;
+    const runtime = runtimeRef.current;
+    if (!root || !runtime) return;
+    const { gsap, ScrollTrigger } = runtime;
     const position = readingRef.current;
     // 节点保持稳定，仅刷新几何尺寸，不销毁并重建固定区间。
     // 首次刷新由最后初始化的交互 Hook 统一完成。
@@ -120,7 +132,9 @@ export function useResumeLocale(rootRef: RefObject<HTMLElement | null>): {
       }
       window.dispatchEvent(new Event(RESUME_LOCALE_CHANGE_EVENT));
     };
-    if (!root) { commit(); return; }
+    const runtime = runtimeRef.current;
+    if (!root || !runtime) { commit(); return; }
+    const { gsap, ScrollTrigger } = runtime;
     lockedRef.current = true;
     root.dataset.localeSwitching = "true";
     root.dispatchEvent(new Event(resumeMotionEvents.localeStart));

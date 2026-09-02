@@ -80,7 +80,7 @@ test("resume 页面保持双语数据、UI 与 GSAP 行为分层", async () => {
     assert.match(sections, new RegExp(`id=["']${id}["']`, "u"));
   }
   assert.match(localeHook, /localStorage/u);
-  assert.match(motionHook, /useGSAP/u);
+  assert.match(motionHook, /useResumeGsap/u);
   assert.match(motionHook, /gsap\.timeline/u);
   assert.match(motionHook, /ScrollTrigger/u);
   assert.match(motionHook, /scrub:/u);

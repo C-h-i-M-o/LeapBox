@@ -200,7 +200,7 @@ export function ProjectsSection({ content }: SharedSectionProps) {
             <article className="resume-project-card" key={project.number} data-project-card>
               <div className="resume-project-image" data-project-image>
                 <img src={project.image} alt={project.imageAlt} />
-                <span>{project.number}</span>
+                {/* <span>{project.number}</span> */}
               </div>
               <div className="resume-project-copy" data-project-copy>
                 <div className="resume-project-title-row">

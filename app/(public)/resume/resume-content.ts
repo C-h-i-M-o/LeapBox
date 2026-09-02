@@ -1,7 +1,7 @@
 export type ResumeLocale = "zh" | "en";
 
 export type NavigationLink = {
-  href: "#about" | "#awards" | "#work" | "#strengths" | "#contact";
+  href: "#about" | "#work" | "#strengths" | "#contact";
   label: string;
 };
 
@@ -26,6 +26,8 @@ export type ProjectContent = {
   outcome?: string;
   stack: readonly string[];
   image: string;
+  imageWidth: number;
+  imageHeight: number;
   imageAlt: string;
   href?: string;
 };
@@ -64,9 +66,6 @@ export type ResumeContent = {
     techStack: readonly string[];
   };
   awards: {
-    sectionLabel: string;
-    title: string;
-    introduction: string;
     items: readonly AwardContent[];
   };
   projectSection: {
@@ -116,10 +115,9 @@ const techStack = [
 
 const zh: ResumeContent = {
   navigation: {
-    brand: "刘逸伦 / 作品集",
+    brand: "刘逸伦",
     links: [
       { href: "#about", label: "经历" },
-      { href: "#awards", label: "荣誉" },
       { href: "#work", label: "项目" },
       { href: "#strengths", label: "能力" },
       { href: "#contact", label: "联系" },
@@ -130,7 +128,7 @@ const zh: ResumeContent = {
   hero: {
     eyebrow: "上海 · AI 应用与全栈工程",
     role: "AI 开发者",
-    title: ["把 AI 的不确定", "变成可以验证的产品。"],
+    title: ["把 AI 的不确定", "变成可以验证的产品"],
     statement:
       "我构建模型评测、RAG、Agent 与企业级 AI 工作流，也关心它们是否准确、快速，并真正进入生产环境。",
     scrollLabel: "向下探索",
@@ -163,13 +161,9 @@ const zh: ResumeContent = {
     techStack,
   },
   awards: {
-    sectionLabel: "02 / 获奖经历",
-    title: "让每一次竞赛与认可，\n都成为继续构建的坐标。",
-    introduction: "从程序设计、数学竞赛到团队协作，这些经历记录了我持续解决问题的过程。",
     items: [
       { period: "2024.12", title: "CACC 上海市二等奖" },
       { period: "2024.12", title: "东华大学程序设计新人邀请赛银奖" },
-      { period: "2025.03", title: "入党积极分子培训班主题讨论第三名" },
       { period: "2025.05", title: "第十六届蓝桥杯上海赛区 C/C++ 程序设计大学 A 组二等奖" },
       { period: "2025.05", title: "东华大学数学竞赛二等奖" },
       { period: "2025.05", title: "金马五校程序设计竞赛铜奖" },
@@ -183,8 +177,8 @@ const zh: ResumeContent = {
     ],
   },
   projectSection: {
-    sectionLabel: "03 / 精选项目",
-    title: "不是展示功能清单，\n而是展示问题如何被解决。",
+    sectionLabel: "02 / 精选项目",
+    title: "不是展示功能清单\n而是问题如何被解决",
     introduction:
       "三个项目分别对应 AI 评测、企业检索链路与 Agent 工程化。企业项目内容已脱敏，仅保留可公开的技术方法与结果。",
     viewProjectLabel: "查看项目",
@@ -199,6 +193,7 @@ const zh: ResumeContent = {
         "为模型、RAG 与 Agent 应用建立统一评测依据，整合规则评分、三轮 LLM-as-a-Judge 与用户反馈，覆盖内容质量、格式、安全、忠实度和工具调用。",
       stack: ["React", "FastAPI", "MySQL", "RAG", "LLM Judge"],
       image: "/resume/project-evalspark.webp",
+      imageWidth: 1568, imageHeight: 1003,
       imageAlt: "EvalSpark AI 评测实验室抽象项目封面",
       href: "https://github.com/C-h-i-M-o/EvalSpark",
     },
@@ -211,6 +206,7 @@ const zh: ResumeContent = {
       outcome: "打通简历解析、检索、高亮与入库的完整链路",
       stack: ["Next.js", "TypeScript", "Elasticsearch", "LLM", "Browser Extension"],
       image: "/resume/project-resume-intelligence.webp",
+      imageWidth: 1586, imageHeight: 992,
       imageAlt: "企业 AI 简历解析与检索链路抽象封面",
     },
     {
@@ -222,12 +218,13 @@ const zh: ResumeContent = {
       outcome: "从代码提交直接生成可复用的开发报告",
       stack: ["Git", "Agent", "Prompt Engineering", "Tool Calling"],
       image: "/resume/project-git-report.webp",
+      imageWidth: 1586, imageHeight: 992,
       imageAlt: "Git 变更分析与 Agent 汇报抽象封面",
     },
   ],
   strengthsSection: {
-    sectionLabel: "04 / 个人优势",
-    title: "让 AI 能力通过工程约束，\n变成可靠的用户体验。",
+    sectionLabel: "03 / 个人优势",
+    title: "让 AI 能力通过工程约束\n变成可靠的用户体验",
     introduction: "从模型、数据到界面与交付，四项能力共同组成完整的产品链路。",
   },
   strengths: [
@@ -261,8 +258,8 @@ const zh: ResumeContent = {
     },
   ],
   contact: {
-    sectionLabel: "05 / 联系",
-    title: ["有值得验证的想法，", "我们可以从一次对话开始。"],
+    sectionLabel: "04 / 联系",
+    title: ["有值得验证的想法", "我们从一次对话开始"],
     statement: "如果你正在寻找 AI 应用、全栈开发或检索工程方向的合作伙伴，欢迎与我联系。",
     emailLabel: "发送邮件",
     githubLabel: "访问 GitHub",
@@ -277,10 +274,9 @@ const zh: ResumeContent = {
 
 const en: ResumeContent = {
   navigation: {
-    brand: "Yilun Liu / Portfolio",
+    brand: "Yilun Liu",
     links: [
       { href: "#about", label: "About" },
-      { href: "#awards", label: "Awards" },
       { href: "#work", label: "Work" },
       { href: "#strengths", label: "Strengths" },
       { href: "#contact", label: "Contact" },
@@ -300,7 +296,7 @@ const en: ResumeContent = {
     sectionLabel: "01 / About",
     title: "Bridging model capability and the realities of production.",
     introduction:
-      "I’m Yilun Liu, an AI developer and Software Engineering undergraduate. My work spans AI applications, front-end experience, back-end services, and search infrastructure, with a focus on making systems verifiable, explainable, and continuously deliverable.",
+      "I’m Yilun Liu, an AI developer and Software Engineering. My work spans AI applications, front-end experience, back-end services, and search infrastructure, with a focus on making systems verifiable, explainable, and continuously deliverable.",
     portraitAlt: "Abstract line portrait representing an AI developer",
     location: "Shanghai, China",
     emailLabel: "Email",
@@ -309,7 +305,7 @@ const en: ResumeContent = {
     timeline: [
       {
         period: "Sep 2024 — Jun 2028",
-        organization: "Donghua University · Double First-Class / 211",
+        organization: "Donghua University·Double Tops 211",
         role: "B.Eng. in Software Engineering",
         summary: "GPA 3.670/5.0, ranked 14/84 (top 17%).",
       },
@@ -324,13 +320,9 @@ const en: ResumeContent = {
     techStack,
   },
   awards: {
-    sectionLabel: "02 / Awards",
-    title: "Every competition and recognition\nbecomes a coordinate for what comes next.",
-    introduction: "From programming and mathematics to team leadership, these milestones record a sustained practice of solving problems.",
     items: [
       { period: "Dec 2024", title: "Second Prize, CACC Shanghai" },
       { period: "Dec 2024", title: "Silver Award, Donghua Newcomer Programming Invitational" },
-      { period: "Mar 2025", title: "Third Place, Activist Training Programme Theme Discussion" },
       { period: "May 2025", title: "Second Prize, 16th Lanqiao Cup Shanghai, C/C++ University Group A" },
       { period: "May 2025", title: "Second Prize, Donghua University Mathematics Competition" },
       { period: "May 2025", title: "Bronze Award, Jinma Five-University Programming Contest" },
@@ -344,7 +336,7 @@ const en: ResumeContent = {
     ],
   },
   projectSection: {
-    sectionLabel: "03 / Selected work",
+    sectionLabel: "02 / Selected work",
     title: "Not a feature list.\nA record of problems solved.",
     introduction:
       "Three projects across AI evaluation, enterprise search, and agentic engineering. Enterprise work is sanitized to retain only public technical methods and outcomes.",
@@ -360,6 +352,7 @@ const en: ResumeContent = {
         "Built an evaluation lab for models, RAG systems, and agent applications, combining rule-based scoring, three rounds of LLM-as-a-Judge evaluation, and user feedback across quality, format, safety, faithfulness, and tool use.",
       stack: ["React", "FastAPI", "MySQL", "RAG", "LLM Judge"],
       image: "/resume/project-evalspark.webp",
+      imageWidth: 1568, imageHeight: 1003,
       imageAlt: "Abstract cover for the EvalSpark AI evaluation laboratory",
       href: "https://github.com/C-h-i-M-o/EvalSpark",
     },
@@ -372,6 +365,7 @@ const en: ResumeContent = {
       outcome: "A complete loop across parsing, search, highlighting, and ingestion",
       stack: ["Next.js", "TypeScript", "Elasticsearch", "LLM", "Browser Extension"],
       image: "/resume/project-resume-intelligence.webp",
+      imageWidth: 1586, imageHeight: 992,
       imageAlt: "Abstract cover for enterprise AI resume parsing and search",
     },
     {
@@ -383,11 +377,12 @@ const en: ResumeContent = {
       outcome: "Reusable development reports generated directly from commit evidence",
       stack: ["Git", "Agent", "Prompt Engineering", "Tool Calling"],
       image: "/resume/project-git-report.webp",
+      imageWidth: 1586, imageHeight: 992,
       imageAlt: "Abstract cover for Git analysis and agentic reporting",
     },
   ],
   strengthsSection: {
-    sectionLabel: "04 / Strengths",
+    sectionLabel: "03 / Strengths",
     title: "Engineering constraints turn\nAI capability into reliable UX.",
     introduction: "From models and data to interfaces and delivery, four strengths shape a complete product pipeline.",
   },
@@ -403,7 +398,7 @@ const en: ResumeContent = {
       number: "02",
       title: "Full-Stack Delivery",
       description:
-        "Building products, integrating APIs, and shipping features with React, TypeScript, Next.js, FastAPI, and Node.js.",
+        "Building products, integrating APIs with React, TypeScript, Next.js, FastAPI, and Node.js.",
       skills: ["React", "TypeScript", "FastAPI", "Node.js"],
     },
     {
@@ -422,8 +417,8 @@ const en: ResumeContent = {
     },
   ],
   contact: {
-    sectionLabel: "05 / Contact",
-    title: ["Have an idea worth validating?", "Let’s start with a conversation."],
+    sectionLabel: "04 / Contact",
+    title: ["Have an idea worth validating?", "Starting a conversation."],
     statement:
       "If you are looking for a collaborator in AI applications, full-stack development, or search engineering, I would be glad to connect.",
     emailLabel: "Send an email",

@@ -48,6 +48,11 @@ test("公开 resume 路由匿名呈现 AI 开发者作品集", async () => {
   const html = await response.text();
   assert.match(html, /<title>刘逸伦 · AI 开发者<\/title>/iu);
   assert.match(html, /AI 开发者/u);
+  assert.match(html, /<img\b[^>]*src="\/resume\/personal-mark-128-v1\.png"/u);
+  assert.match(html, /<link\b(?=[^>]*rel="icon")(?=[^>]*href="\/resume\/favicon-32-v1\.png")[^>]*>/u);
+  for (const file of ["personal-mark-128-v1.png", "favicon-32-v1.png", "favicon-64-v1.png"]) {
+    await access(new URL(`../public/resume/${file}`, import.meta.url));
+  }
   assert.match(html, /EvalSpark/u);
   assert.match(html, /切换为英文|Switch to English/u);
   assert.match(html, /liuyilun0603@163\.com/u);
@@ -55,6 +60,8 @@ test("公开 resume 路由匿名呈现 AI 开发者作品集", async () => {
   assert.doesNotMatch(html, /owner@example\.com|跃匣主人/u);
   assert.doesNotMatch(html, /15235577669/u);
   assert.doesNotMatch(html, /个人展示页建设中/u);
+  assert.doesNotMatch(html, /移动光标，探索另一面|Move your cursor to explore another angle|resume-project-hint/u);
+  assert.doesNotMatch(html, />\s*P\s*\/\s*0[1-3]\s*</u, "项目封面不显示用户已移除的序号");
 });
 
 test("resume 页面保持双语数据、UI 与 GSAP 行为分层", async () => {
@@ -88,22 +95,67 @@ test("resume 页面保持双语数据、UI 与 GSAP 行为分层", async () => {
   );
 });
 
-test("resume 页面使用滚动叙事、奖项圆环与粘性项目结构", async () => {
-  const [sections, portfolio, motionHook, css] = await Promise.all([
+test("resume 首屏封面优先，视频与非首屏图片不在解析 HTML 时抢先加载", async () => {
+  const response = await render("/resume", false);
+  const html = await response.text();
+  const images = html.match(/<img\b[^>]*>/gu) ?? [];
+  const belowFold = images.filter((image) => /portrait-line|project-/u.test(image));
+  assert.equal(belowFold.length, 4);
+  for (const image of belowFold) {
+    assert.match(image, /loading="lazy"/u);
+    assert.match(image, /decoding="async"/u);
+    assert.match(image, /width="\d+"/u);
+    assert.match(image, /height="\d+"/u);
+  }
+  assert.match(html, /<link\b(?=[^>]*href="\/resume\/hero-poster\.jpg")(?=[^>]*fetchPriority="high")[^>]*>/iu);
+  const video = html.match(/<video\b[^>]*>/u)?.[0] ?? "";
+  assert.match(video, /preload="none"/u);
+  assert.doesNotMatch(video, /autoplay/iu);
+});
+
+test("resume 仅保留共享粒子标题，撤回电影叙事、项目探照和能力流程", async () => {
+  const response = await render("/resume", false);
+  const html = await response.text();
+  const page = html.slice(0, html.indexOf("</main>"));
+  assert.doesNotMatch(page, /data-lens-toggle|data-flow-panel|data-story-canvas|data-flow-replay|data-cinema-heading/u);
+  const title = page.match(/<h1\b[\s\S]*?<\/h1>/u)?.[0] ?? "";
+  assert.match(title, /resume-particle-seed/u, "脚本启动前仍以散点进入");
+  assert.match(title, /resume-particle-fallback/u, "Canvas 不可用时仍有语义文本");
+  assert.equal((title.match(/<canvas\b/gu) ?? []).length, 1, "两行粒子必须共用一个画布，跨行交互不裁切");
+  assert.equal((title.match(/class="resume-particle-line"/gu) ?? []).length, 2, "共享画布仍保留两行文字的语义与排版");
+  assert.doesNotMatch(page, /(?:id="awards"|>\s*P\s*\/\s*0[1-3]\s*<)/u);
+});
+
+test("resume 奖项在经历区完整展示，导航与页面均不再包含独立荣誉区", async () => {
+  const response = await render("/resume", false);
+  const html = await response.text();
+  const about = html.match(/<section\b[^>]*\bid="about"[^>]*>[\s\S]*?<\/section>/u)?.[0] ?? "";
+  for (const award of [
+    "CACC 上海市二等奖",
+    "东华大学程序设计新人邀请赛银奖",
+    "第十六届蓝桥杯上海赛区 C/C++ 程序设计大学 A 组二等奖",
+    "东华大学数学竞赛二等奖",
+    "金马五校程序设计竞赛铜奖",
+    "中国大学生程序设计竞赛（CCPC）上海市赛铜奖",
+    "东华大学一等奖学金",
+    "东华大学优秀学生干部",
+  ]) {
+    assert.ok(about.includes(award), `经历区应保留奖项：${award}`);
+  }
+  assert.match(about, /队长/u);
+  assert.match(about, /TypeScript/u);
+  assert.doesNotMatch(html, /(?:id="awards"|href="#awards"|暂停旋转|下一项荣誉)/u);
+
+  const [sections, motionHook, css] = await Promise.all([
     readFile(new URL("../app/(public)/resume/resume-sections.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../app/(public)/resume/resume-portfolio.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/(public)/resume/use-resume-motion.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/(public)/resume/resume.css", import.meta.url), "utf8"),
   ]);
 
-  assert.match(sections, /resume-brand-mark">YL</u);
-  assert.match(sections, /function AwardsSection/u);
-  assert.match(portfolio, /<AwardsSection/u);
+  assert.match(sections, /<img className="resume-brand-mark"/u);
   for (const attribute of [
     "data-about-stage",
     "data-tech-track",
-    "data-awards-ring",
-    "data-award-item",
     "data-project-card",
     "data-strengths-stage",
     "data-strength-item",
@@ -111,18 +163,12 @@ test("resume 页面使用滚动叙事、奖项圆环与粘性项目结构", asyn
   ]) {
     assert.match(sections, new RegExp(attribute, "u"));
   }
-  assert.match(sections, /id="awards"/u);
   assert.doesNotMatch(sections, /resume-stats|content\.hero\.availability/u);
 
-  assert.match(motionHook, /getAwardRingRotation/u);
   assert.doesNotMatch(motionHook, /getScrollInfluencedTimeScale|\.timeScale\(|getVelocity\(/u);
   assert.match(motionHook, /pin:\s*true/u);
-  assert.match(motionHook, /repeat:\s*-1/u);
-  assert.match(motionHook, /pointerenter/u);
-  assert.match(motionHook, /focusin/u);
 
   assert.match(css, /\.resume-project-card\s*\{[^}]*position:\s*sticky/isu);
-  assert.match(css, /\.resume-awards-ring\s*\{[^}]*transform-style:\s*preserve-3d/isu);
   assert.match(css, /@keyframes\s+resume-tech-forward/u);
   assert.match(css, /@keyframes\s+resume-tech-reverse/u);
   assert.match(css, /scrollbar-width:\s*none/u);

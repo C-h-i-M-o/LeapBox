@@ -1,4 +1,6 @@
 import type { ResumeContent, ResumeLocale } from "./resume-content.ts";
+import type { ResumeInteractionContent } from "./resume-interaction-content";
+import { ParticleTitle } from "./particle-title";
 import {
   ArrowDownIcon,
   ArrowUpRightIcon,
@@ -10,6 +12,7 @@ import {
 type SharedSectionProps = {
   content: ResumeContent;
 };
+type InteractiveSectionProps = SharedSectionProps & { interaction: ResumeInteractionContent };
 
 type NavigationProps = SharedSectionProps & {
   locale: ResumeLocale;
@@ -20,12 +23,12 @@ export function ResumeNavigation({ content, locale, toggleLocale }: NavigationPr
   return (
     <header className="resume-nav" data-hero-reveal>
       <a className="resume-brand" href="#top" aria-label={content.navigation.brand}>
-        <span className="resume-brand-mark">YL</span>
+        <img className="resume-brand-mark" src="/resume/personal-mark-128-v1.png" width={40} height={40} alt="" aria-hidden="true" />
         <span>{content.navigation.brand}</span>
       </a>
       <nav className="resume-nav-links" aria-label={locale === "zh" ? "作品集导航" : "Portfolio navigation"}>
         {content.navigation.links.map((link) => (
-          <a key={link.href} href={link.href}>{link.label}</a>
+          <a key={link.href} href={link.href} data-nav-link><span>{link.label}</span></a>
         ))}
       </nav>
       <div className="resume-nav-actions">
@@ -40,7 +43,7 @@ export function ResumeNavigation({ content, locale, toggleLocale }: NavigationPr
           <i aria-hidden="true" />
           <span className={locale === "en" ? "is-active" : undefined}>EN</span>
         </button>
-        <a className="resume-contact-button" href="#contact">
+        <a className="resume-contact-button" href="#contact" data-magnetic>
           {content.navigation.contactLabel}
           <ArrowDownIcon />
         </a>
@@ -49,11 +52,11 @@ export function ResumeNavigation({ content, locale, toggleLocale }: NavigationPr
   );
 }
 
-export function HeroSection({ content }: SharedSectionProps) {
+export function HeroSection({ content, interaction }: InteractiveSectionProps) {
   return (
     <section className="resume-hero" id="top" aria-labelledby="resume-hero-title" data-hero-stage>
       <div className="resume-hero-media" aria-hidden="true" data-hero-media>
-        <video autoPlay muted loop playsInline poster="/resume/hero-poster.jpg">
+        <video muted loop playsInline preload="none" poster="/resume/hero-poster.jpg" data-hero-video>
           <source src="/resume/hero-data-flow.mp4" type="video/mp4" />
         </video>
         <div className="resume-hero-shade" />
@@ -61,17 +64,16 @@ export function HeroSection({ content }: SharedSectionProps) {
       </div>
       <div className="resume-hero-signal" aria-hidden="true" data-hero-signal><SignalIcon /></div>
       <div className="resume-hero-content resume-shell">
-        <div className="resume-hero-kicker" data-hero-reveal>
+        <div className="resume-hero-kicker" data-hero-reveal data-locale-copy>
           <span>{content.hero.role}</span>
           <span>{content.hero.eyebrow}</span>
         </div>
-        <h1 id="resume-hero-title" data-hero-title>
-          {content.hero.title.map((line) => <span key={line} data-hero-line>{line}</span>)}
-        </h1>
-        <div className="resume-hero-bottom" data-hero-reveal>
+        <ParticleTitle lines={content.hero.title} />
+        <div className="resume-hero-bottom" data-hero-reveal data-locale-copy>
           <p>{content.hero.statement}</p>
         </div>
         <div className="resume-hero-meta" data-hero-reveal>
+          <span className="resume-interaction-hint"><i aria-hidden="true" />{interaction.particleHint}</span>
           <a href="#about"><ArrowDownIcon />{content.hero.scrollLabel}</a>
         </div>
       </div>
@@ -79,9 +81,9 @@ export function HeroSection({ content }: SharedSectionProps) {
   );
 }
 
-function TechTrack({ content, reverse }: SharedSectionProps & { reverse?: boolean }) {
+function TechTrack({ content }: SharedSectionProps) {
   return (
-    <div className={`resume-tech-row${reverse ? " is-reverse" : ""}`} data-tech-track>
+    <div className="resume-tech-row" data-tech-track>
       {[0, 1].map((copyIndex) => (
         <div className="resume-tech-track" key={copyIndex} aria-hidden={copyIndex === 1}>
           {content.about.techStack.map((technology) => (
@@ -95,20 +97,46 @@ function TechTrack({ content, reverse }: SharedSectionProps & { reverse?: boolea
   );
 }
 
-export function AboutSection({ content }: SharedSectionProps) {
+function AwardTrack({ content }: SharedSectionProps) {
+  return (
+    <div className="resume-tech-row is-reverse resume-award-track" data-award-track>
+      {[0, 1].map((copyIndex) => (
+        <div className="resume-tech-track" key={copyIndex} aria-hidden={copyIndex === 1}>
+          {content.awards.items.map((award, index) => (
+            <span className="resume-award-ticker-item" key={index}>
+              <time>{award.period}</time>
+              <strong>{award.title}</strong>
+              {award.distinction ? <small>{award.distinction}</small> : null}
+              <i aria-hidden="true" />
+            </span>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function AboutSection({ content, interaction }: InteractiveSectionProps) {
   return (
     <section className="resume-about" id="about" aria-labelledby="resume-about-title">
       <div className="resume-about-stage" data-about-stage>
         <div className="resume-about-main resume-shell">
           <h2 className="resume-visually-hidden" id="resume-about-title">{content.about.title}</h2>
+          <div className="resume-chapter-switch" aria-label={content.about.title} data-enter-group>
+            {interaction.aboutLabels.map((label, index) => (
+              <button type="button" key={index} data-about-select={index} aria-pressed={index === 0} data-enter-item>
+                <span>0{index + 1}</span>{label}<i aria-hidden="true" />
+              </button>
+            ))}
+          </div>
           <div className="resume-about-layout">
-            <figure className="resume-portrait" data-about-portrait>
-              <img src="/resume/portrait-line.webp" alt={content.about.portraitAlt} />
+            <figure className="resume-portrait" data-about-portrait data-tilt>
+              <img src="/resume/portrait-line.webp" alt={content.about.portraitAlt} loading="lazy" decoding="async" width={1024} height={1536} />
               <div className="resume-portrait-scan" data-about-scan aria-hidden="true" />
               <figcaption><SignalIcon />{content.about.location}</figcaption>
             </figure>
 
-            <div className="resume-about-panels">
+            <div className="resume-about-panels" data-locale-copy>
               <article className="resume-about-panel is-introduction" data-about-panel>
                 <p className="resume-panel-kicker">{content.about.sectionLabel}</p>
                 <p className="resume-about-introduction">{content.about.introduction}</p>
@@ -127,7 +155,7 @@ export function AboutSection({ content }: SharedSectionProps) {
               </article>
 
               {content.about.timeline.map((entry, index) => (
-                <article className="resume-about-panel resume-experience-panel" key={`${entry.period}-${entry.organization}`} data-about-panel>
+                <article className="resume-about-panel resume-experience-panel" key={index} data-about-panel>
                   <p className="resume-panel-kicker">0{index + 2} / {content.about.timelineLabel}</p>
                   <time>{entry.period}</time>
                   <h3>{entry.organization}</h3>
@@ -139,44 +167,9 @@ export function AboutSection({ content }: SharedSectionProps) {
           </div>
         </div>
 
-        <div className="resume-tech-marquee" aria-label={content.about.techStack.join(", ")}>
+        <div className="resume-tech-marquee">
           <TechTrack content={content} />
-          <TechTrack content={content} reverse />
-        </div>
-      </div>
-    </section>
-  );
-}
-
-export function AwardsSection({ content }: SharedSectionProps) {
-  return (
-    <section className="resume-awards" id="awards" aria-labelledby="resume-awards-title">
-      <div className="resume-awards-stage resume-shell" data-awards-stage>
-        <div className="resume-awards-heading">
-          <p className="resume-section-label">{content.awards.sectionLabel}</p>
-          <h2 id="resume-awards-title">
-            {content.awards.title.split("\n").map((line) => <span key={line}>{line}</span>)}
-          </h2>
-          <p>{content.awards.introduction}</p>
-        </div>
-
-        <div className="resume-awards-viewport" data-awards-viewport>
-          <div className="resume-awards-axis" aria-hidden="true"><SignalIcon /></div>
-          <div className="resume-awards-ring" data-awards-ring>
-            {content.awards.items.map((award) => (
-              <button
-                className="resume-award-item"
-                key={`${award.period}-${award.title}`}
-                type="button"
-                aria-label={`${award.period} · ${award.title}${award.distinction ? ` · ${award.distinction}` : ""}`}
-                data-award-item
-              >
-                <span className="resume-award-period">{award.period}</span>
-                <span className="resume-award-title">{award.title}</span>
-                {award.distinction ? <span className="resume-award-distinction">{award.distinction}</span> : null}
-              </button>
-            ))}
-          </div>
+          <AwardTrack content={content} />
         </div>
       </div>
     </section>
@@ -187,23 +180,22 @@ export function ProjectsSection({ content }: SharedSectionProps) {
   return (
     <section className="resume-projects" id="work" aria-labelledby="resume-work-title">
       <div className="resume-shell">
-        <div className="resume-section-heading">
-          <p className="resume-section-label">{content.projectSection.sectionLabel}</p>
-          <h2 id="resume-work-title">
-            {content.projectSection.title.split("\n").map((line) => <span key={line}>{line}</span>)}
+        <div className="resume-section-heading" data-locale-copy data-enter-group>
+          <p className="resume-section-label" data-enter-item>{content.projectSection.sectionLabel}</p>
+          <h2 id="resume-work-title" data-enter-item>
+            {content.projectSection.title.split("\n").map((line, index) => <span key={index}>{line}</span>)}
           </h2>
-          <p>{content.projectSection.introduction}</p>
+          <p data-enter-item>{content.projectSection.introduction}</p>
         </div>
 
         <div className="resume-project-stack">
           {content.projects.map((project) => (
             <article className="resume-project-card" key={project.number} data-project-card>
-              <div className="resume-project-image" data-project-image>
-                <img src={project.image} alt={project.imageAlt} />
-                <span>{project.number}</span>
+              <div className="resume-project-image" data-project-image data-tilt>
+                <img src={project.image} alt={project.imageAlt} loading="lazy" decoding="async" width={project.imageWidth} height={project.imageHeight} />
               </div>
-              <div className="resume-project-copy" data-project-copy>
-                <div className="resume-project-title-row">
+              <div className="resume-project-copy" data-project-copy data-enter-group>
+                <div className="resume-project-title-row" data-locale-copy data-enter-item>
                   <div>
                     <p>{project.category}</p>
                     <h3>{project.title}</h3>
@@ -214,14 +206,15 @@ export function ProjectsSection({ content }: SharedSectionProps) {
                       target="_blank"
                       rel="noreferrer"
                       aria-label={`${content.projectSection.viewProjectLabel}: ${project.title}`}
+                      data-magnetic
                     >
                       <ArrowUpRightIcon />
                     </a>
                   ) : <span className="resume-private-badge">{content.projectSection.privateProjectLabel}</span>}
                 </div>
-                <p className="resume-project-description">{project.description}</p>
-                {project.outcome ? <p className="resume-project-outcome"><SignalIcon />{project.outcome}</p> : null}
-                <ul aria-label={`${project.title} technology stack`}>
+                <p className="resume-project-description" data-locale-copy data-enter-item>{project.description}</p>
+                {project.outcome ? <p className="resume-project-outcome" data-locale-copy data-enter-item><SignalIcon />{project.outcome}</p> : null}
+                <ul aria-label={`${project.title} technology stack`} data-enter-item>
                   {project.stack.map((item) => <li key={item}>{item}</li>)}
                 </ul>
               </div>
@@ -233,25 +226,26 @@ export function ProjectsSection({ content }: SharedSectionProps) {
   );
 }
 
-export function StrengthsSection({ content }: SharedSectionProps) {
+export function StrengthsSection({ content, interaction }: InteractiveSectionProps) {
   return (
     <section className="resume-strengths" id="strengths" aria-labelledby="resume-strengths-title">
       <div className="resume-strengths-stage resume-shell" data-strengths-stage>
-        <div className="resume-strengths-heading">
-          <p className="resume-section-label">{content.strengthsSection.sectionLabel}</p>
-          <h2 id="resume-strengths-title">
-            {content.strengthsSection.title.split("\n").map((line) => <span key={line}>{line}</span>)}
+        <div className="resume-strengths-heading" data-locale-copy data-enter-group>
+          <p className="resume-section-label" data-enter-item>{content.strengthsSection.sectionLabel}</p>
+          <h2 id="resume-strengths-title" data-enter-item>
+            {content.strengthsSection.title.split("\n").map((line, index) => <span key={index}>{line}</span>)}
           </h2>
-          <p>{content.strengthsSection.introduction}</p>
+          <p data-enter-item>{content.strengthsSection.introduction}</p>
+          <small className="resume-interaction-hint" data-enter-item>{interaction.strengthHint}</small>
         </div>
 
         <div className="resume-strength-list">
           <div className="resume-strength-glow" data-strength-glow aria-hidden="true" />
-          {content.strengths.map((strength) => (
+          {content.strengths.map((strength, index) => (
             <article key={strength.number} data-strength-item>
               <span>{strength.number}</span>
-              <div>
-                <h3>{strength.title}</h3>
+              <div data-locale-copy>
+                <h3><button type="button" data-strength-select={index} aria-pressed={index === 0}>{strength.title}<span aria-hidden="true">↗</span></button></h3>
                 <p>{strength.description}</p>
                 <ul>{strength.skills.map((skill) => <li key={skill}>{skill}</li>)}</ul>
               </div>
@@ -270,19 +264,19 @@ export function ContactSection({ content }: SharedSectionProps) {
       <div className="resume-grain" aria-hidden="true" />
       <div className="resume-shell">
         <p className="resume-section-label" data-contact-reveal>{content.contact.sectionLabel}</p>
-        <h2 id="resume-contact-title" data-contact-title>
-          {content.contact.title.map((line) => <span key={line}>{line}</span>)}
+        <h2 id="resume-contact-title" data-contact-title data-locale-copy>
+          {content.contact.title.map((line, index) => <span key={index}>{line}</span>)}
         </h2>
         <div className="resume-contact-bottom" data-contact-reveal>
-          <p>{content.contact.statement}</p>
+          <p data-locale-copy>{content.contact.statement}</p>
           <div className="resume-contact-actions">
-            <a className="resume-primary-link" href={content.contact.emailHref}>
+            <a className="resume-primary-link" href={content.contact.emailHref} data-magnetic data-enter-item data-contact-action>
               {content.contact.emailLabel}<MailIcon />
             </a>
-            <a className="resume-text-link" href={content.contact.githubHref} target="_blank" rel="noreferrer">
+            <a className="resume-text-link" href={content.contact.githubHref} target="_blank" rel="noreferrer" data-magnetic data-enter-item data-contact-action>
               {content.contact.githubLabel}<ArrowUpRightIcon />
             </a>
-            <span className="resume-location"><SignalIcon />{content.contact.locationLabel} · {content.contact.location}</span>
+            <span className="resume-location" data-enter-item data-contact-action><SignalIcon />{content.contact.locationLabel} · {content.contact.location}</span>
           </div>
         </div>
         <footer className="resume-footer" data-contact-reveal>

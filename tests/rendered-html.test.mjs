@@ -113,6 +113,22 @@ test("resume 首屏封面优先，视频与非首屏图片不在解析 HTML 时�
   assert.doesNotMatch(video, /autoplay/iu);
 });
 
+test("resume 服务端首帧带加载界面，正文不可见且不可聚焦", async () => {
+  const response = await render("/resume", false);
+  const html = await response.text();
+  assert.match(html, /<main\b[^>]*data-loading-state="loading"/u);
+  assert.match(html, /data-resume-loader/u);
+  assert.match(html, /<div\b(?=[^>]*class="resume-content")(?=[^>]*inert="")(?=[^>]*aria-hidden="true")(?=[^>]*aria-busy="true")[^>]*>/u);
+  assert.match(html, /<div\b(?=[^>]*class="resume-content")(?=[^>]*style="visibility:hidden")[^>]*>/u, "样式文件尚未抵达时也不能闪现正文");
+  assert.match(html, /role="progressbar"[^>]*aria-valuenow="0"/u);
+  assert.match(html, /精彩，即将呈现/u);
+  assert.match(html, /<noscript>/u);
+  const css = await readFile(new URL("../app/(public)/resume/resume-loading.css", import.meta.url), "utf8");
+  assert.match(css, /visibility:\s*hidden\s*!important/u);
+  assert.match(css, /animation-play-state:\s*paused\s*!important/u);
+  assert.match(css, /overflow:\s*hidden/u);
+});
+
 test("resume 仅保留共享粒子标题，撤回电影叙事、项目探照和能力流程", async () => {
   const response = await render("/resume", false);
   const html = await response.text();

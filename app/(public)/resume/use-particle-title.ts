@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { getParticleRelease, getParticleScatter, getVortexOffset, resumeMotionEvents } from "./resume-motion-model.ts";
 import { createParticleLoop } from "./particle-frame-loop.ts";
+import { markResumePrepared, resumeLoadingEvents } from "./resume-loading";
 
 type Particle = {
   x: number; y: number; tx: number; ty: number; sx: number; sy: number;
@@ -28,6 +29,7 @@ export function useParticleTitle(lines: readonly string[]) {
     const ctx = canvas?.getContext("2d");
     if (!canvas || !ctx) {
       title.dataset.particleFailed = "true";
+      markResumePrepared(root, "particlesReady");
       return;
     }
     let particles: Particle[] = [];
@@ -43,7 +45,7 @@ export function useParticleTitle(lines: readonly string[]) {
     const pointer = { active: false, held: false, x: 0, y: 0 };
 
     const render = (now: number, dt: number): boolean => {
-      if (!visible || document.hidden || disposed || !particles.length) return false;
+      if (!visible || document.hidden || disposed || !particles.length || root.dataset.loadingState !== "ready") return false;
       if (!started) started = now;
       ctx.clearRect(0, 0, width, height);
       const age = now - started;
@@ -85,7 +87,7 @@ export function useParticleTitle(lines: readonly string[]) {
     const loop = createParticleLoop(render);
     const stop = loop.stop;
     const start = () => {
-      if (visible && !document.hidden && particles.length && !disposed) loop.start();
+      if (visible && !document.hidden && particles.length && !disposed && root.dataset.loadingState === "ready") loop.start();
     };
     const build = async () => {
       const id = ++buildId;
@@ -143,17 +145,26 @@ export function useParticleTitle(lines: readonly string[]) {
           };
         });
       });
-      if (!particles.length) { title.dataset.particleFailed = "true"; return; }
+      if (!particles.length) {
+        title.dataset.particleFailed = "true";
+        markResumePrepared(root, "particlesReady");
+        return;
+      }
       delete title.dataset.particleFailed;
       dispersing = false;
       started = 0;
+      markResumePrepared(root, "particlesReady");
       start();
     };
     const queueBuild = () => {
       cancelAnimationFrame(resizeFrame);
       resizeFrame = requestAnimationFrame(() => {
         void build().catch(() => {
-          if (!disposed) { stop(); title.dataset.particleFailed = "true"; }
+          if (!disposed) {
+            stop();
+            title.dataset.particleFailed = "true";
+            markResumePrepared(root, "particlesReady");
+          }
         });
       });
     };
@@ -213,6 +224,7 @@ export function useParticleTitle(lines: readonly string[]) {
     title.addEventListener("lostpointercapture", reset);
     window.addEventListener("blur", reset);
     root.addEventListener(resumeMotionEvents.localeStart, scatter);
+    root.addEventListener(resumeLoadingEvents.reveal, start);
     document.addEventListener("visibilitychange", visibility);
     queueBuild();
     return () => {
@@ -230,8 +242,10 @@ export function useParticleTitle(lines: readonly string[]) {
       title.removeEventListener("lostpointercapture", reset);
       window.removeEventListener("blur", reset);
       root.removeEventListener(resumeMotionEvents.localeStart, scatter);
+      root.removeEventListener(resumeLoadingEvents.reveal, start);
       document.removeEventListener("visibilitychange", visibility);
       delete title.dataset.particleReady;
+      delete root.dataset.particlesReady;
       buildRef.current = null;
     };
   }, []);

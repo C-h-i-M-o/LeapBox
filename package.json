@@ -10,7 +10,7 @@
     "build": "vinext build",
     "start": "vinext start",
     "test": "npm run test:unit && npm run test:migration && npm run test:contracts && npm run build && npm run test:rendered",
-    "test:unit": "node --experimental-strip-types --test tests/files-core.test.ts tests/file-store.test.ts tests/upload-store.test.ts tests/upload-client.test.ts tests/upload-scheduler.test.ts tests/resume-content.test.ts tests/resume-motion-model.test.ts",
+    "test:unit": "node --experimental-strip-types --test tests/files-core.test.ts tests/file-store.test.ts tests/upload-store.test.ts tests/upload-client.test.ts tests/upload-scheduler.test.ts tests/resume-content.test.ts tests/resume-motion-model.test.ts tests/resume-loading.test.ts",
     "test:migration": "node --test tests/migration-contract.test.mjs",
     "test:contracts": "node --test tests/upload-routes-contract.test.mjs",
     "test:rendered": "node --test tests/rendered-html.test.mjs",

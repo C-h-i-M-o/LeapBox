@@ -201,6 +201,6 @@ export function useResumeMotion(
         media.revert();
       };
     },
-    { scope: rootRef },
+    { scope: rootRef, readinessKey: "motionReady" },
   );
 }

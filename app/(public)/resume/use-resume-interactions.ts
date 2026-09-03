@@ -2,6 +2,7 @@
 
 import type { RefObject } from "react";
 import { useResumeGsap } from "./use-resume-gsap";
+import { resumeLoadingEvents } from "./resume-loading";
 
 export function useResumeInteractions(rootRef: RefObject<HTMLElement | null>): void {
   useResumeGsap(({ gsap, ScrollTrigger }) => {
@@ -39,7 +40,7 @@ export function useResumeInteractions(rootRef: RefObject<HTMLElement | null>): v
       const playing = () => { video.dataset.ready = "true"; };
       const failed = () => { delete video.dataset.ready; };
       const syncVideo = () => {
-        if (!inView || document.hidden) video.pause();
+        if (!inView || document.hidden || root.dataset.loadingState !== "ready") video.pause();
         else void video.play().then(() => {
           if (disposed || !inView || document.hidden) video.pause();
         }).catch(() => { /* 自动播放受限时继续显示本地封面。 */ });
@@ -48,6 +49,7 @@ export function useResumeInteractions(rootRef: RefObject<HTMLElement | null>): v
       video.addEventListener("playing", playing);
       video.addEventListener("error", failed);
       document.addEventListener("visibilitychange", syncVideo);
+      root.addEventListener(resumeLoadingEvents.reveal, syncVideo);
       observer.observe(video);
       if (!video.paused && video.readyState >= 2) playing();
       cleanups.push(() => {
@@ -57,6 +59,7 @@ export function useResumeInteractions(rootRef: RefObject<HTMLElement | null>): v
         video.removeEventListener("playing", playing);
         video.removeEventListener("error", failed);
         document.removeEventListener("visibilitychange", syncVideo);
+        root.removeEventListener(resumeLoadingEvents.reveal, syncVideo);
       });
     }
 
@@ -115,5 +118,5 @@ export function useResumeInteractions(rootRef: RefObject<HTMLElement | null>): v
       media.revert();
       cleanups.forEach((cleanup) => cleanup());
     };
-  }, { scope: rootRef });
+  }, { scope: rootRef, readinessKey: "interactionsReady" });
 }

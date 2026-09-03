@@ -3,7 +3,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useSyncExternalStore, type RefObject } from "react";
 import type gsap from "gsap";
 import type { ScrollTrigger } from "gsap/ScrollTrigger";
-import { loadResumeGsap, type ResumeGsapRuntime } from "./use-resume-gsap";
+import { loadResumeGsap, type ResumeGsapRuntime } from "./use-resume-gsap.ts";
 import { getReadingScrollPosition, resumeMotionEvents } from "./resume-motion-model.ts";
 
 import {

@@ -1,5 +1,6 @@
 import { useEffect, useRef, type RefObject } from "react";
 import type gsap from "gsap";
+import { markResumePrepared, resumeLoadingEvents, type ResumePreparation } from "./resume-loading.ts";
 
 export type ResumeGsapRuntime = {
   gsap: typeof gsap;
@@ -20,19 +21,36 @@ export function loadResumeGsap(): Promise<ResumeGsapRuntime> {
 /** 两组动画仅初始化一次，异步加载完成后仍保持根节点作用域和卸载清理。 */
 export function useResumeGsap(
   initialize: (runtime: ResumeGsapRuntime) => void | (() => void),
-  { scope }: { scope: RefObject<HTMLElement | null> },
+  { scope, readinessKey }: { scope: RefObject<HTMLElement | null>; readinessKey: ResumePreparation },
 ): void {
   const initializeRef = useRef(initialize);
   useEffect(() => {
+    const root = scope.current;
+    if (!root) return;
     let disposed = false;
+    let initializing = false;
     let context: gsap.Context | undefined;
-    void loadResumeGsap().then((runtime) => {
-      if (disposed || !scope.current) return;
-      context = runtime.gsap.context(() => initializeRef.current(runtime), scope);
-    }).catch(() => { /* 动画库加载失败时保留可阅读的静态简历。 */ });
+    const initializeWhenReady = () => {
+      if (initializing || root.dataset.assetsReady !== "true") return;
+      initializing = true;
+      void loadResumeGsap().then((runtime) => {
+        if (disposed) return;
+        context = runtime.gsap.context(() => initializeRef.current(runtime), scope);
+        markResumePrepared(root, readinessKey);
+      }).catch(() => {
+        if (disposed) return;
+        root.dataset.preparationFailed = "true";
+        root.dispatchEvent(new Event(resumeLoadingEvents.prepared));
+      });
+    };
+    root.addEventListener(resumeLoadingEvents.assetsReady, initializeWhenReady);
+    initializeWhenReady();
     return () => {
       disposed = true;
+      root.removeEventListener(resumeLoadingEvents.assetsReady, initializeWhenReady);
+      delete root.dataset[readinessKey];
+      delete root.dataset.preparationFailed;
       context?.revert();
     };
-  }, [scope]);
+  }, [scope, readinessKey]);
 }

@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { ResumePortfolio } from "./resume-portfolio";
 import "./resume.css";
 import "./resume-loading.css";
+import "./resume-depth.css";
 
 export const metadata: Metadata = {
   title: "刘逸伦 · AI 开发者",

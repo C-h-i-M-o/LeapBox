@@ -32,6 +32,18 @@ async function render(pathname = "/", authenticated = true) {
   );
 }
 
+test("简历立体增强保留粒子画布和原有滚动舞台", async () => {
+  const response = await render("/resume", false);
+  const html = await response.text();
+  assert.equal(response.status, 200);
+  assert.equal((html.match(/<canvas\b/gu) ?? []).length, 1);
+  assert.match(html, /data-about-stage/u);
+  assert.match(html, /data-strengths-stage/u);
+  assert.equal((html.match(/<article\b[^>]*data-project-card=/gu) ?? []).length, 3);
+  assert.match(html, /class="resume-sculpture-stage"[^>]*aria-hidden="true"/u);
+  assert.equal((html.match(/class="resume-project-exhibit"/gu) ?? []).length, 3);
+});
+
 test("根路由保持空白且不触发登录", async () => {
   const response = await render("/", false);
   assert.equal(response.status, 200);

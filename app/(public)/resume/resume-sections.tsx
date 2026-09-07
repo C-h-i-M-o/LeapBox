@@ -1,6 +1,7 @@
 import type { ResumeContent, ResumeLocale } from "./resume-content.ts";
 import type { ResumeInteractionContent } from "./resume-interaction-content";
 import { ParticleTitle } from "./particle-title";
+import { ResumeSculpture } from "./resume-sculpture";
 import {
   ArrowDownIcon,
   ArrowUpRightIcon,
@@ -69,6 +70,7 @@ export function HeroSection({ content }: SharedSectionProps) {
           <span>{content.hero.eyebrow}</span>
         </div>
         <ParticleTitle lines={content.hero.title} />
+        <ResumeSculpture />
         <div className="resume-hero-bottom" data-hero-reveal data-locale-copy>
           <p>{content.hero.statement}</p>
         </div>
@@ -190,8 +192,13 @@ export function ProjectsSection({ content }: SharedSectionProps) {
         <div className="resume-project-stack">
           {content.projects.map((project) => (
             <article className="resume-project-card" key={project.number} data-project-card>
-              <div className="resume-project-image" data-project-image data-tilt>
-                <img src={project.image} alt={project.imageAlt} loading="lazy" decoding="async" width={project.imageWidth} height={project.imageHeight} />
+              <div className="resume-project-exhibit">
+                <div className="resume-project-image" data-project-image data-tilt>
+                  <div className="resume-project-image-surface">
+                    <img src={project.image} alt={project.imageAlt} loading="lazy" decoding="async" width={project.imageWidth} height={project.imageHeight} />
+                  </div>
+                  <span className="resume-project-plate" aria-hidden="true">{project.category}</span>
+                </div>
               </div>
               <div className="resume-project-copy" data-project-copy data-enter-group>
                 <div className="resume-project-title-row" data-locale-copy data-enter-item>

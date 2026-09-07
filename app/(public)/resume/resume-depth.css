@@ -1,0 +1,95 @@
+/* 装饰内层负责立体感，原有粒子、固定舞台与卡片滚动变换保持独立。 */
+.resume-page .resume-hero-content {
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  grid-template-rows: auto auto auto auto;
+  align-content: center;
+  column-gap: 2vw;
+}
+.resume-page .resume-hero-kicker { grid-column: 1 / -1; margin-bottom: clamp(32px, 5vh, 64px); }
+.resume-page .resume-hero h1 {
+  grid-column: 1;
+  grid-row: 2;
+  align-self: center;
+  font-size: clamp(32px, 4.8vw, 84px);
+  padding: 12px 0 32px;
+}
+.resume-page .resume-hero h1 > span:last-of-type { padding-left: 0; }
+.resume-page[lang="en"] .resume-hero h1 { font-size: clamp(26px, 3.6vw, 64px); }
+.resume-page .resume-hero-bottom { grid-column: 1; grid-row: 3; }
+.resume-page .resume-hero-meta { grid-column: 1 / -1; grid-row: 4; margin-top: clamp(30px, 5vh, 70px); }
+.resume-page .resume-hero-signal { opacity: .18; }
+.resume-page .resume-hero-media video { filter: saturate(.52) contrast(1.12) brightness(.4); }
+.resume-page .resume-sculpture-stage {
+  position: relative;
+  grid-column: 2;
+  grid-row: 2 / 4;
+  align-self: center;
+  min-width: 0;
+  width: 100%;
+  aspect-ratio: 1;
+  isolation: isolate;
+}
+.resume-page .resume-sculpture-stage canvas,
+.resume-page .resume-sculpture-fallback {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.resume-page .resume-sculpture-stage canvas { opacity: 0; transition: opacity 450ms ease; }
+.resume-page .resume-sculpture-stage[data-renderer="webgl"] canvas { opacity: 1; }
+.resume-page .resume-sculpture-stage[data-renderer="webgl"] .resume-sculpture-fallback { visibility: hidden; }
+.resume-page .resume-sculpture-fallback { padding: 12%; color: var(--resume-mint); }
+.resume-page .resume-project-exhibit {
+  display: grid;
+  min-width: 0;
+  padding: clamp(22px, 2.7vw, 46px);
+  perspective: 1100px;
+}
+.resume-page .resume-project-exhibit .resume-project-image {
+  overflow: visible;
+  background: #172921;
+  transform-style: preserve-3d;
+  box-shadow: 2px 2px #233e32, 4px 4px #233e32, 6px 6px #233e32, 8px 8px #35513f, 10px 10px #35513f, 18px 26px 30px rgb(0 0 0 / 44%);
+}
+.resume-page .resume-project-image-surface {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border: 1px solid rgb(158 200 181 / 30%);
+  transform: translateZ(12px);
+}
+.resume-page .resume-project-exhibit .resume-project-image::after { transform: translateZ(13px); }
+.resume-page .resume-project-plate {
+  position: absolute;
+  bottom: 24px;
+  left: 20px;
+  padding: 10px 14px;
+  border: 1px solid rgb(135 197 168 / 35%);
+  background: rgb(12 23 19 / 91%);
+  color: var(--resume-ivory);
+  font-size: 10px;
+  letter-spacing: .06em;
+  transform: translateZ(36px);
+  box-shadow: 0 15px 22px rgb(0 0 0 / 40%);
+  pointer-events: none;
+}
+@media (max-width: 1180px) {
+  .resume-page .resume-project-exhibit .resume-project-image { min-height: 440px; }
+}
+@media (max-width: 760px) {
+  .resume-page .resume-hero-content { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto auto auto auto; }
+  .resume-page .resume-hero-kicker { margin-bottom: 22px; }
+  .resume-page .resume-hero h1 { font-size: clamp(22px, 7.7vw, 57px); }
+  .resume-page[lang="en"] .resume-hero h1 { font-size: clamp(19px, 5.65vw, 42px); }
+  .resume-page .resume-sculpture-stage { grid-column: 1; grid-row: 3; width: min(85%, 330px); justify-self: center; margin: 0 0 12px; }
+  .resume-page .resume-hero-bottom { grid-row: 4; }
+  .resume-page .resume-hero-meta { grid-row: 5; }
+  .resume-page .resume-project-exhibit { padding: 20px; }
+  .resume-page .resume-project-exhibit .resume-project-image { min-height: 300px; }
+  .resume-page .resume-project-plate { bottom: 16px; left: 12px; padding: 8px 10px; font-size: 9px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .resume-page .resume-sculpture-stage canvas { transition: none; }
+  .resume-page .resume-project-exhibit .resume-project-image { transform: none !important; }
+}

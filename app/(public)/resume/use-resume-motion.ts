@@ -118,7 +118,8 @@ export function useResumeMotion(
 
         const strengthItems = gsap.utils.toArray<HTMLElement>("[data-strength-item]");
         const strengthGlow = gsap.utils.toArray<HTMLElement>("[data-strength-glow]")[0];
-        gsap.set(strengthItems.slice(1), { autoAlpha: 0.24, scale: 0.96 });
+        gsap.set(strengthItems, { autoAlpha: 1, scale: 1 });
+        gsap.set(strengthItems.slice(1), { autoAlpha: 0.78, scale: 0.98 });
         if (strengthGlow) {
           gsap.set(strengthGlow, { autoAlpha: 0.78, y: 0 });
         }
@@ -140,9 +141,9 @@ export function useResumeMotion(
 
         strengthItems.slice(1).forEach((item, index) => {
           const previousItem = strengthItems[index];
-          const position = index * 0.33;
+          const position = 0.1 + index * 0.3;
           strengthsTimeline
-            .to(previousItem, { autoAlpha: 0.24, scale: 0.96, duration: 0.14 }, position)
+            .fromTo(previousItem, { autoAlpha: 1, scale: 1 }, { autoAlpha: 0.78, scale: 0.98, duration: 0.18, immediateRender: false }, position)
             .to(item, { autoAlpha: 1, scale: 1, duration: 0.18 }, position + 0.1);
 
           if (strengthGlow) {

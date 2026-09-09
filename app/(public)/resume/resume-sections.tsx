@@ -1,7 +1,5 @@
 import type { ResumeContent, ResumeLocale } from "./resume-content.ts";
 import type { ResumeInteractionContent } from "./resume-interaction-content";
-import { ParticleTitle } from "./particle-title";
-import { ResumeSculpture } from "./resume-sculpture";
 import {
   ArrowDownIcon,
   ArrowUpRightIcon,
@@ -56,21 +54,16 @@ export function ResumeNavigation({ content, locale, toggleLocale }: NavigationPr
 export function HeroSection({ content }: SharedSectionProps) {
   return (
     <section className="resume-hero" id="top" aria-labelledby="resume-hero-title" data-hero-stage>
-      <div className="resume-hero-media" aria-hidden="true" data-hero-media>
-        <video muted loop playsInline preload="none" poster="/resume/hero-poster.jpg" data-hero-video>
-          <source src="/resume/hero-data-flow.mp4" type="video/mp4" />
-        </video>
-        <div className="resume-hero-shade" />
-        <div className="resume-grain" />
-      </div>
       <div className="resume-hero-signal" aria-hidden="true" data-hero-signal><SignalIcon /></div>
       <div className="resume-hero-content resume-shell">
         <div className="resume-hero-kicker" data-hero-reveal data-locale-copy>
           <span>{content.hero.role}</span>
           <span>{content.hero.eyebrow}</span>
         </div>
-        <ParticleTitle lines={content.hero.title} />
-        <ResumeSculpture />
+        <h1 id="resume-hero-title" data-hero-title data-locale-copy>
+          {content.hero.title.map((line, index) => <span key={index} data-hero-line>{line}</span>)}
+        </h1>
+        <div className="resume-star-anchor" data-star-anchor aria-hidden="true" />
         <div className="resume-hero-bottom" data-hero-reveal data-locale-copy>
           <p>{content.hero.statement}</p>
         </div>
@@ -269,9 +262,12 @@ export function ContactSection({ content }: SharedSectionProps) {
       <div className="resume-grain" aria-hidden="true" />
       <div className="resume-shell">
         <p className="resume-section-label" data-contact-reveal>{content.contact.sectionLabel}</p>
-        <h2 id="resume-contact-title" data-contact-title data-locale-copy>
-          {content.contact.title.map((line, index) => <span key={index}>{line}</span>)}
-        </h2>
+        <div className="resume-contact-star-layout">
+          <h2 id="resume-contact-title" data-contact-title data-locale-copy>
+            {content.contact.title.map((line, index) => <span key={index}>{line}</span>)}
+          </h2>
+          <div className="resume-contact-star-anchor" data-contact-star-anchor aria-hidden="true" />
+        </div>
         <div className="resume-contact-bottom" data-contact-reveal>
           <p data-locale-copy>{content.contact.statement}</p>
           <div className="resume-contact-actions">

@@ -21,7 +21,6 @@ export const metadata: Metadata = {
 export default function ResumePage() {
   return (
     <>
-      <link rel="preload" as="image" href="/resume/hero-poster.jpg" fetchPriority="high" />
       <ResumePortfolio />
     </>
   );

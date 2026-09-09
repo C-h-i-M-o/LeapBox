@@ -2,13 +2,11 @@
 
 import type { RefObject } from "react";
 import { useResumeGsap } from "./use-resume-gsap";
-import { resumeLoadingEvents } from "./resume-loading";
 
 export function useResumeInteractions(rootRef: RefObject<HTMLElement | null>): void {
   useResumeGsap(({ gsap, ScrollTrigger }) => {
     const root = rootRef.current;
     if (!root) return;
-    const cleanups: Array<() => void> = [];
     const progress = root.querySelector<HTMLElement>("[data-reading-progress]");
     const navLinks = Array.from(root.querySelectorAll<HTMLAnchorElement>("[data-nav-link]"));
     const setProgress = progress ? gsap.quickSetter(progress, "scaleX") : undefined;
@@ -33,64 +31,19 @@ export function useResumeInteractions(rootRef: RefObject<HTMLElement | null>): v
       });
     });
 
-    const video = root.querySelector<HTMLVideoElement>("[data-hero-video]");
-    if (video) {
-      let inView = true;
-      let disposed = false;
-      const playing = () => { video.dataset.ready = "true"; };
-      const failed = () => { delete video.dataset.ready; };
-      const syncVideo = () => {
-        if (!inView || document.hidden || root.dataset.loadingState !== "ready") video.pause();
-        else void video.play().then(() => {
-          if (disposed || !inView || document.hidden) video.pause();
-        }).catch(() => { /* 自动播放受限时继续显示本地封面。 */ });
-      };
-      const observer = new IntersectionObserver(([entry]) => { inView = entry.isIntersecting; syncVideo(); });
-      video.addEventListener("playing", playing);
-      video.addEventListener("error", failed);
-      document.addEventListener("visibilitychange", syncVideo);
-      root.addEventListener(resumeLoadingEvents.reveal, syncVideo);
-      observer.observe(video);
-      if (!video.paused && video.readyState >= 2) playing();
-      cleanups.push(() => {
-        disposed = true;
-        observer.disconnect();
-        video.pause();
-        video.removeEventListener("playing", playing);
-        video.removeEventListener("error", failed);
-        document.removeEventListener("visibilitychange", syncVideo);
-        root.removeEventListener(resumeLoadingEvents.reveal, syncVideo);
-      });
-    }
-
     const media = gsap.matchMedia();
     media.add("(hover: hover) and (pointer: fine)", () => {
       const removeListeners: Array<() => void> = [];
-      const light = root.querySelector<HTMLElement>("[data-pointer-light]");
-      if (light) {
-        const xTo = gsap.quickTo(light, "x", { duration: 0.65, ease: "power3" });
-        const yTo = gsap.quickTo(light, "y", { duration: 0.65, ease: "power3" });
-        const move = (event: PointerEvent) => {
-          xTo(event.clientX);
-          yTo(event.clientY);
-          if (!root.hasAttribute("data-pointer-active")) root.dataset.pointerActive = "true";
-        };
-        const leave = () => { delete root.dataset.pointerActive; };
-        root.addEventListener("pointermove", move, { passive: true });
-        root.addEventListener("pointerleave", leave);
-        removeListeners.push(() => {
-          root.removeEventListener("pointermove", move);
-          root.removeEventListener("pointerleave", leave);
-          leave();
-        });
-      }
-
+      const cachedRects = new WeakMap<HTMLElement, DOMRect>();
+      let resetActive: (() => void) | undefined;
       root.querySelectorAll<HTMLElement>("[data-tilt], [data-magnetic]").forEach((element) => {
         const magnetic = element.hasAttribute("data-magnetic");
         const xTo = gsap.quickTo(element, magnetic ? "x" : "rotationY", { duration: 0.45, ease: "power3" });
         const yTo = gsap.quickTo(element, magnetic ? "y" : "rotationX", { duration: 0.45, ease: "power3" });
+        const enter = () => { cachedRects.set(element, element.getBoundingClientRect()); resetActive = leave; };
         const move = (event: PointerEvent) => {
-          const rect = element.getBoundingClientRect();
+          const rect = cachedRects.get(element);
+          if (!rect) return;
           const x = (event.clientX - rect.left) / rect.width;
           const y = (event.clientY - rect.top) / rect.height;
           xTo((x - 0.5) * (magnetic ? 12 : 9));
@@ -100,15 +53,27 @@ export function useResumeInteractions(rootRef: RefObject<HTMLElement | null>): v
             element.style.setProperty("--pointer-y", `${y * 100}%`);
           }
         };
-        const leave = () => { xTo(0); yTo(0); };
+        const leave = () => { cachedRects.delete(element); xTo(0); yTo(0); if (resetActive === leave) resetActive = undefined; };
+        element.addEventListener("pointerenter", enter, { passive: true });
         element.addEventListener("pointermove", move, { passive: true });
         element.addEventListener("pointerleave", leave);
         removeListeners.push(() => {
+          element.removeEventListener("pointerenter", enter);
           element.removeEventListener("pointermove", move);
           element.removeEventListener("pointerleave", leave);
           element.style.removeProperty("--pointer-x");
           element.style.removeProperty("--pointer-y");
         });
+      });
+      // 滚动或窗口尺寸变化后，旧矩形失效；下次进入元素时重新测量。
+      const invalidateRects = () => {
+        resetActive?.();
+      };
+      window.addEventListener("resize", invalidateRects, { passive: true });
+      window.addEventListener("scroll", invalidateRects, { passive: true });
+      removeListeners.push(() => {
+        window.removeEventListener("resize", invalidateRects);
+        window.removeEventListener("scroll", invalidateRects);
       });
       return () => removeListeners.forEach((remove) => remove());
     });
@@ -116,7 +81,6 @@ export function useResumeInteractions(rootRef: RefObject<HTMLElement | null>): v
     ScrollTrigger.refresh();
     return () => {
       media.revert();
-      cleanups.forEach((cleanup) => cleanup());
     };
   }, { scope: rootRef, readinessKey: "interactionsReady" });
 }

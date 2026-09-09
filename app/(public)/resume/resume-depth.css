@@ -1,4 +1,4 @@
-/* 装饰内层负责立体感，原有粒子、固定舞台与卡片滚动变换保持独立。 */
+/* 星群使用独立固定层，保留原固定舞台与卡片滚动变换。 */
 .resume-page .resume-hero-content {
   grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
   grid-template-rows: auto auto auto auto;
@@ -18,8 +18,7 @@
 .resume-page .resume-hero-bottom { grid-column: 1; grid-row: 3; }
 .resume-page .resume-hero-meta { grid-column: 1 / -1; grid-row: 4; margin-top: clamp(30px, 5vh, 70px); }
 .resume-page .resume-hero-signal { opacity: .18; }
-.resume-page .resume-hero-media video { filter: saturate(.52) contrast(1.12) brightness(.4); }
-.resume-page .resume-sculpture-stage {
+.resume-page .resume-star-anchor {
   position: relative;
   grid-column: 2;
   grid-row: 2 / 4;
@@ -28,7 +27,16 @@
   width: 100%;
   aspect-ratio: 1;
   isolation: isolate;
+  cursor: grab;
 }
+.resume-page .resume-sculpture-stage {
+  position: fixed;
+  inset: 0;
+  z-index: 6;
+  pointer-events: none;
+  overflow: hidden;
+}
+.resume-page[data-star-dragging] { cursor: grabbing; user-select: none; }
 .resume-page .resume-sculpture-stage canvas,
 .resume-page .resume-sculpture-fallback {
   position: absolute;
@@ -39,7 +47,31 @@
 .resume-page .resume-sculpture-stage canvas { opacity: 0; transition: opacity 450ms ease; }
 .resume-page .resume-sculpture-stage[data-renderer="webgl"] canvas { opacity: 1; }
 .resume-page .resume-sculpture-stage[data-renderer="webgl"] .resume-sculpture-fallback { visibility: hidden; }
-.resume-page .resume-sculpture-fallback { padding: 12%; color: var(--resume-mint); }
+.resume-page .resume-sculpture-fallback {
+  opacity: .5;
+  background:
+    radial-gradient(circle at 90% 25%, #c3e3ff 0 1px, transparent 3px),
+    radial-gradient(circle at 7% 65%, #ecc396 0 1px, transparent 3px),
+    radial-gradient(circle at 92% 75%, #b7ace8 0 1px, transparent 3px),
+    radial-gradient(ellipse at 88% 45%, rgb(130 163 223 / 8%), transparent 22%);
+  background-size: 231px 311px, 373px 457px, 297px 239px, 100% 100%;
+  mask-image: linear-gradient(90deg, #000, transparent 25% 75%, #000);
+}
+.resume-page .resume-hero-signal { display: none; }
+.resume-page .resume-hero h1 { position: relative; z-index: 7; }
+/* 模型只在独立过渡区占据中央；正文不再依赖文字形状的遮罩。 */
+.resume-page .resume-star-transition { height: 120svh; cursor: grab; }
+.resume-page[data-starfield-unavailable] .resume-star-transition { height: 0; }
+.resume-page .resume-contact-star-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 3vw;
+}
+.resume-page .resume-contact-star-layout h2 { font-size: clamp(36px, 5.4vw, 88px); }
+.resume-page .resume-contact-star-layout h2 > span:last-child { padding-left: 0; }
+.resume-page .resume-contact-star-anchor { width: 100%; aspect-ratio: 1; cursor: grab; }
+.resume-page .resume-contact-orbit { display: none; }
 .resume-page .resume-project-exhibit {
   display: grid;
   min-width: 0;
@@ -82,14 +114,18 @@
   .resume-page .resume-hero-kicker { margin-bottom: 22px; }
   .resume-page .resume-hero h1 { font-size: clamp(22px, 7.7vw, 57px); }
   .resume-page[lang="en"] .resume-hero h1 { font-size: clamp(19px, 5.65vw, 42px); }
-  .resume-page .resume-sculpture-stage { grid-column: 1; grid-row: 3; width: min(85%, 330px); justify-self: center; margin: 0 0 12px; }
+  .resume-page .resume-star-anchor { grid-column: 1; grid-row: 3; width: min(85%, 330px); justify-self: center; margin: 0 0 12px; }
   .resume-page .resume-hero-bottom { grid-row: 4; }
   .resume-page .resume-hero-meta { grid-row: 5; }
+  .resume-page .resume-contact-star-layout { grid-template-columns: minmax(0, 1fr); }
+  .resume-page .resume-contact-star-layout h2 { font-size: clamp(30px, 8vw, 52px); }
+  .resume-page .resume-contact-star-anchor { width: min(72vw, 280px); justify-self: center; }
   .resume-page .resume-project-exhibit { padding: 20px; }
   .resume-page .resume-project-exhibit .resume-project-image { min-height: 300px; }
   .resume-page .resume-project-plate { bottom: 16px; left: 12px; padding: 8px 10px; font-size: 9px; }
 }
 @media (prefers-reduced-motion: reduce) {
+  .resume-page .resume-star-transition { height: 0; }
   .resume-page .resume-sculpture-stage canvas { transition: none; }
   .resume-page .resume-project-exhibit .resume-project-image { transform: none !important; }
 }
